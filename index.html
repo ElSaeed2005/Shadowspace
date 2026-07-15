@@ -1,4 +1,4 @@
-``html
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -180,6 +180,24 @@
             });
         };
 
+        // مصلح روابط اليوتيوب التلقائي لتضمينها بذكاء داخل الـ IFrames
+        const formatEmbedUrl = (url) => {
+            if (!url) return '';
+            let videoId = '';
+            if (url.includes('youtube.com/embed/')) {
+                return url;
+            }
+            if (url.includes('youtube.com/watch?v=')) {
+                videoId = url.split('v=')[1].split('&')[0];
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0];
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            return url;
+        };
+
         // ==========================================
         //  الدوال المساعدة للحسابات الزمنية والتواريخ
         // ==========================================
@@ -203,6 +221,13 @@
             hours = hours ? hours : 12; 
             const hoursStr = String(hours).padStart(2, '0');
             return `${hoursStr}:${minutes}:${seconds} ${ampm}`;
+        };
+
+        const formatDigitalTimer = (totalSecs) => {
+            const s = totalSecs % 60;
+            const m = Math.floor(totalSecs / 60) % 60;
+            const h = Math.floor(totalSecs / 3600);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         };
 
         const getWeekDays = (startDayName, referenceDate) => {
@@ -267,6 +292,42 @@
 
             const [dimPanels, setDimPanels] = useState(false);
             
+            // وضع الرفاهية والترفيه المطور بالكامل
+            const [isLuxuryMode, setIsLuxuryMode] = useState(false);
+            const [luxurySeconds, setLuxurySeconds] = useState(() => {
+                const saved = localStorage.getItem('shadow_luxury_seconds');
+                return saved ? parseInt(saved, 10) : 0;
+            });
+
+            const [luxuryVideos, setLuxuryVideos] = useState(() => {
+                const saved = localStorage.getItem('shadow_luxury_videos');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, title: "جولة هادئة ومريحة للأعصاب في سويسرا ⛰️", url: "https://www.youtube.com/embed/5U7O01z56mU" },
+                    { id: 2, title: "موسيقى هادئة للدراسة والاسترخاء اللامتناهي 🎵", url: "https://www.youtube.com/embed/jfKfPfyJRdk" }
+                ];
+            });
+
+            const [luxuryGames, setLuxuryGames] = useState(() => {
+                const saved = localStorage.getItem('shadow_luxury_games');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, title: "لعبة 2048 الكلاسيكية المثيرة 🎮", url: "https://play2048.co" },
+                    { id: 2, title: "لعبة الهليكوبتر والتركيز الفائق 🚁", url: "https://classicreload.com/sites/default/files/html5/classic-helicopter/index.html" }
+                ];
+            });
+
+            const [luxuryMovies, setLuxuryMovies] = useState(() => {
+                const saved = localStorage.getItem('shadow_luxury_movies');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, title: "أسرار الكون والنجوم - فيلم وثائقي فخم 🌌", url: "https://www.youtube.com/embed/libKVRa01L8" },
+                    { id: 2, title: "أعماق البحار الكبرى والمحيطات الغامضة 🌊", url: "https://www.youtube.com/embed/v77V7OALqvg" }
+                ];
+            });
+
+            const [activeLuxuryCat, setActiveLuxuryCat] = useState('movies'); // 'movies', 'videos', 'games'
+            const [activeLuxuryItemUrl, setActiveLuxuryUrl] = useState('');
+            const [newLuxTitle, setNewLuxTitle] = useState('');
+            const [newLuxUrl, setNewLuxUrl] = useState('');
+
             const [categories, setCategories] = useState(() => {
                 const saved = localStorage.getItem('shadow_categories_v4');
                 return saved ? JSON.parse(saved) : ["البرمجة", "الأمن السيبراني", "شهادة CC", "اللغة الإنجليزية", "تطوير الذات"];
@@ -303,7 +364,7 @@
             const [customAudioUrl, setCustomAudioUrl] = useState('');
             const [customAudioName, setCustomAudioName] = useState('');
 
-            // الشمعة الذكية بدون إصدار أصوات
+            // الشمعة الذكية وصوت الحطب المدمج
             const [isCandleLit, setIsCandleLit] = useState(false);
 
             // تبويبات العمل (المهام / لوحة المذاكرة والقراءة)
@@ -357,7 +418,7 @@
             const [newCategoryName, setNewCategoryName] = useState('');
             const [editingTask, setEditingTask] = useState(null);
 
-            // المزامنة مع التخزين المحلي
+            // المزامنة مع التخزين المحلي والترفيهي
             useEffect(() => {
                 localStorage.setItem('shadow_categories_v4', JSON.stringify(categories));
             }, [categories]);
@@ -395,6 +456,46 @@
                 localStorage.setItem('shadow_ambient_sound', ambientSound);
                 localStorage.setItem('shadow_ambient_vol', ambientVolume);
             }, [ambientSound, ambientVolume]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_luxury_seconds', luxurySeconds);
+            }, [luxurySeconds]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_luxury_videos', JSON.stringify(luxuryVideos));
+            }, [luxuryVideos]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_luxury_games', JSON.stringify(luxuryGames));
+            }, [luxuryGames]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_luxury_movies', JSON.stringify(luxuryMovies));
+            }, [luxuryMovies]);
+
+            // مؤقت وضع الترفيه والرفاهية الخاص
+            useEffect(() => {
+                let interval = null;
+                if (isLuxuryMode) {
+                    interval = setInterval(() => {
+                        setLuxurySeconds(prev => prev + 1);
+                    }, 1000);
+                }
+                return () => clearInterval(interval);
+            }, [isLuxuryMode]);
+
+            // تهيئة وتجهيز المحتويات المعروضة في وضع الرفاهية
+            useEffect(() => {
+                if (isLuxuryMode) {
+                    if (activeLuxuryCat === 'movies' && luxuryMovies.length > 0) {
+                        setActiveLuxuryUrl(luxuryMovies[0].url);
+                    } else if (activeLuxuryCat === 'videos' && luxuryVideos.length > 0) {
+                        setActiveLuxuryUrl(luxuryVideos[0].url);
+                    } else if (activeLuxuryCat === 'games' && luxuryGames.length > 0) {
+                        setActiveLuxuryUrl(luxuryGames[0].url);
+                    }
+                }
+            }, [isLuxuryMode, activeLuxuryCat]);
 
             // تحميل الملف الصوتي من IndexedDB متوافق مع البيئة المحلية
             useEffect(() => {
@@ -603,7 +704,7 @@
                         osc.start();
                         whiteNoise.start();
                     } else if (type === 'fireplace') {
-                        // محاكاة طقطقة حطب المدفأة دافئة الصوت
+                        // محاكاة طوق طقطقة حطب المدفأة دافئة الصوت
                         const rumbleSource = ctx.createBufferSource();
                         rumbleSource.buffer = noiseBuffer;
                         rumbleSource.loop = true;
@@ -722,6 +823,41 @@
             // تفعيل / إلغاء الشمعة (تغيير تأثير الإضاءة والتعتيم الهادئ فقط بدون أصوات)
             const toggleCandle = () => {
                 setIsCandleLit(!isCandleLit);
+            };
+
+            // إدارة قائمة الرفاهية والترفيه
+            const handleAddLuxuryItem = () => {
+                if (!newLuxTitle.trim() || !newLuxUrl.trim()) {
+                    alert("يرجى ملء كافة الحقول لإتمام الإضافة بنجاح.");
+                    return;
+                }
+                const formattedUrl = formatEmbedUrl(newLuxUrl.trim());
+                const newItem = {
+                    id: Date.now(),
+                    title: newLuxTitle.trim(),
+                    url: formattedUrl
+                };
+
+                if (activeLuxuryCat === 'movies') {
+                    setLuxuryMovies([...luxuryMovies, newItem]);
+                } else if (activeLuxuryCat === 'videos') {
+                    setLuxuryVideos([...luxuryVideos, newItem]);
+                } else if (activeLuxuryCat === 'games') {
+                    setLuxuryGames([...luxuryGames, newItem]);
+                }
+
+                setNewLuxTitle('');
+                setNewLuxUrl('');
+            };
+
+            const handleDeleteLuxuryItem = (cat, id) => {
+                if (cat === 'movies') {
+                    setLuxuryMovies(luxuryMovies.filter(item => item.id !== id));
+                } else if (cat === 'videos') {
+                    setLuxuryVideos(luxuryVideos.filter(item => item.id !== id));
+                } else if (cat === 'games') {
+                    setLuxuryGames(luxuryGames.filter(item => item.id !== id));
+                }
             };
 
             // قراءة ورفع ملفات TXT, PDF, Word تفاعلياً ومحلياً
@@ -1026,9 +1162,9 @@
                     {/* مشغل صوتي خفي للملفات الموسيقية المرفوعة من قبل المستخدم من IndexedDB */}
                     <audio ref={localAudioRef} src={customAudioUrl} loop className="hidden" />
                     
-                    {/* طبقة محاكاة وهج الشمعة الدافئ وخفض الإضاءة لجو القراءة المريح وخفيف الإضاءة */}
-                    <div className={`fixed inset-0 pointer-events-none z-20 transition-all duration-1000 ${isCandleLit ? 'opacity-100 bg-[#070503]/55 shadow-[inset_0_0_140px_rgba(245,158,11,0.2)] backdrop-blur-[0.5px]' : 'opacity-0'}`} />
-                    <div className={`fixed inset-0 pointer-events-none z-30 transition-all duration-1000 ${isCandleLit ? 'opacity-100 bg-amber-600/5 mix-blend-color-dodge animate-candle-glow' : 'opacity-0'}`} />
+                    {/* طبقات محاكاة وهج الشمعة وتعتيم الشاشة (z-20 و z-25 ليكون الصالون z-40 فوقها تماماً) */}
+                    <div className={`fixed inset-0 pointer-events-none transition-all duration-1000 ${isCandleLit ? 'opacity-100 bg-[#020101]/85 backdrop-blur-[2px] z-20' : 'opacity-0 z-[-20]'}`} />
+                    <div className={`fixed inset-0 pointer-events-none transition-all duration-1000 ${isCandleLit ? 'opacity-100 bg-amber-600/5 mix-blend-color-dodge animate-candle-glow z-25' : 'opacity-0 z-[-20]'}`} />
 
                     {/* --- شريط المؤقت العائم عند التفعيل --- */}
                     {activeTaskId !== null && activeTask && (
@@ -1193,6 +1329,18 @@
                                     }`}
                                 >
                                     {dimPanels ? '👁 وضع التأمل نشط' : '👁 وضع التأمل'}
+                                </button>
+
+                                {/* زر تفعيل وضع الرفاهية والترفيه الجديد */}
+                                <button 
+                                    onClick={() => setIsLuxuryMode(!isLuxuryMode)}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all border ${
+                                        isLuxuryMode 
+                                        ? 'bg-pink-500/20 border-pink-500 text-pink-300 shadow-[0_0_15px_rgba(236,72,153,0.3)] animate-pulse' 
+                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                    }`}
+                                >
+                                    🎮 وضع الرفاهية {isLuxuryMode && `(${formatDigitalTimer(luxurySeconds)})`}
                                 </button>
                             </div>
 
@@ -1385,8 +1533,8 @@
                         {/* --- بيئة العمل المقسمة (يمين: جدول المهام والـ Analytics، يسار: متعقب العادات والأدوات) --- */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                             
-                            {/* القسم الأيمن (col-span-8): مبدل التبويبات (جدول المهام / لوحة القراءة والدراسة الغامرة) */}
-                            <div className="lg:col-span-8 space-y-6">
+                            {/* القسم الأيمن: يتمدد تلقائياً ليمثل عرض الشاشة بالكامل (col-span-12) عندما يكون صالون المذاكرة نشطاً */}
+                            <div className={`space-y-6 transition-all duration-500 ${activeTab === 'study' ? 'lg:col-span-12' : 'lg:col-span-8'}`}>
 
                                 {/* أزرار تبديل لوحات المذاكرة والعمل */}
                                 <div className="flex gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-white/10 w-fit">
@@ -1645,14 +1793,17 @@
                                         </div>
                                     </>
                                 ) : (
-                                    /* --- لوحة القراءة والمذاكرة الغامرة المحدثة والمنسقة --- */
-                                    <div className="bg-slate-900/40 backdrop-blur-xl border border-white/15 rounded-3xl p-6 shadow-2xl space-y-4">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/10 pb-4">
+                                    /* --- لوحة القراءة والمذاكرة الغامرة المنسقة بنقاء وأسلوب مبهج وعالي التباين --- */
+                                    <div className={`backdrop-blur-xl border rounded-3xl p-6 shadow-2xl space-y-5 transition-all duration-500 ${isCandleLit ? 'bg-[#0f111a] relative z-40 shadow-[0_0_50px_rgba(245,158,11,0.25)] border-amber-500/40 text-amber-50' : 'bg-slate-900/40 border-white/15'}`}>
+                                        
+                                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-white/10 pb-4">
                                             <div>
-                                                <h2 className="text-sm font-black text-white flex items-center gap-2">
-                                                    <span>📖</span> صالون القراءة والمذاكرة الهادئ
+                                                <h2 className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200 flex items-center gap-2">
+                                                    <span>📚</span> صالون القراءة والمذاكرة الهادئ
                                                 </h2>
-                                                <p className="text-[10px] text-slate-400 mt-0.5">ادرس محاضراتك بصفاء ذهني كامل مع وهج الشمع وخفت الإضاءة المتجاوب</p>
+                                                <p className="text-[10px] text-slate-400 mt-1">
+                                                    {isCandleLit ? "🕯️ وضع الإضاءة التعبيرية الدافئة نشط بالكامل. صالون القراءة مضاء بأمان لتسهيل المذاكرة." : "ادرس محاضراتك بصفاء ذهني كامل مع وهج الشمع وخفت الإضاءة المتجاوب"}
+                                                </p>
                                             </div>
 
                                             {/* أزرار التحكم بالمحاكاة والخطوط */}
@@ -1660,17 +1811,17 @@
                                                 {/* زر إشعال وإطفاء الشمعة خافض الإضاءة */}
                                                 <button 
                                                     onClick={toggleCandle}
-                                                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 border ${
+                                                    className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 border ${
                                                         isCandleLit 
-                                                        ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]' 
+                                                        ? 'bg-gradient-to-b from-amber-500 to-yellow-600 text-slate-950 shadow-[0_0_15px_rgba(245,158,11,0.45)] border-transparent scale-105' 
                                                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                                                     }`}
                                                 >
-                                                    🕯️ {isCandleLit ? 'إطفاء الشمعة (زيادة الضوء)' : 'إشعال الشمعة (تعتيم دافئ)'}
+                                                    🕯️ {isCandleLit ? 'إطفاء الشمعة (إنارة عادية)' : 'إشعال الشمعة (تعتيم دافئ)'}
                                                 </button>
 
                                                 {/* فتح ملف نصي أو PDF أو Word */}
-                                                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                                                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
                                                     📂 افتح محاضرة (TXT, PDF, DOCX)
                                                     <input 
                                                         type="file" 
@@ -1682,16 +1833,16 @@
 
                                                 {/* حجم الخط */}
                                                 <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 text-xs">
-                                                    <button onClick={() => setStudyFontSize(prev => Math.max(12, prev - 2))} className="px-2 py-1 hover:bg-white/5 rounded font-bold">أ-</button>
-                                                    <span className="px-1 font-bold font-mono text-[10px]">{studyFontSize}px</span>
-                                                    <button onClick={() => setStudyFontSize(prev => Math.min(32, prev + 2))} className="px-2 py-1 hover:bg-white/5 rounded font-bold">أ+</button>
+                                                    <button onClick={() => setStudyFontSize(prev => Math.max(12, prev - 2))} className="px-2 py-1.5 hover:bg-white/5 rounded font-bold">أ-</button>
+                                                    <span className="px-1.5 font-bold font-mono text-[10px] text-amber-300">{studyFontSize}px</span>
+                                                    <button onClick={() => setStudyFontSize(prev => Math.min(32, prev + 2))} className="px-2 py-1.5 hover:bg-white/5 rounded font-bold">أ+</button>
                                                 </div>
 
                                                 {/* نوع الخط */}
                                                 <select 
                                                     value={studyFontFamily} 
                                                     onChange={(e) => setStudyFontFamily(e.target.value)}
-                                                    className="bg-slate-950 border border-white/10 rounded-xl px-2 py-2 text-xs text-slate-300 focus:outline-none cursor-pointer"
+                                                    className="bg-slate-950 border border-white/10 rounded-xl px-2.5 py-2.5 text-xs text-slate-300 focus:outline-none cursor-pointer"
                                                 >
                                                     <option value="font-sans">خط القاهرة المقروء</option>
                                                     <option value="mono font-mono">خط المبرمجين الدقيق</option>
@@ -1699,9 +1850,15 @@
                                             </div>
                                         </div>
 
+                                        {/* شريط الإرشادات اللطيف */}
+                                        <div className="flex items-center justify-between text-[10px] text-slate-400 bg-white/5 p-3 rounded-2xl border border-white/5">
+                                            <span className="flex items-center gap-1">💡 يمكنك فتح ملفات PDF أو Word تلقائياً لقرائتها محلياً بمحرك المتصفح.</span>
+                                            <span className="text-amber-300 font-bold hidden sm:inline">dir="auto" نشط للتوجيه اللغوي التلقائي</span>
+                                        </div>
+
                                         {/* محاكي الشمعة البصري الكودي الأنيق */}
                                         {isCandleLit && (
-                                            <div className="flex items-center gap-4 bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 max-w-xs mx-auto animate-fadeIn">
+                                            <div className="flex items-center gap-4 bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 max-w-sm mx-auto animate-fadeIn">
                                                 {/* الشمعة المتحركة */}
                                                 <div className="relative w-6 h-14 bg-gradient-to-b from-amber-200 to-amber-500 rounded-t-sm shadow-md flex-shrink-0">
                                                     {/* الفتيل */}
@@ -1710,19 +1867,21 @@
                                                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-3 h-4 bg-gradient-to-t from-red-500 via-amber-400 to-yellow-100 rounded-full shadow-[0_0_12px_rgba(245,158,11,0.9)] origin-bottom animate-flame"></div>
                                                 </div>
                                                 <div className="text-xs text-amber-300 font-bold leading-relaxed">
-                                                    تم خفت إضاءة الخلفية بنجاح لإراحة العينين والمساعدة على الاندماج بالكامل في القراءة.
+                                                    تم خفت إضاءة الخلفية بكامل أجزاء الصفحة، بينما تظل لوحة القراءة واضحة لتسهيل القراءة والمذاكرة.
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* حقل تحرير وقراءة المحاضرات الغامر الأكبر المتجاوب (dir="auto") */}
+                                        {/* حقل تحرير وقراءة المحاضرات الغامر الأكبر المتجاوب (dir="auto") وعالي التباين */}
                                         <div className="relative">
                                             <textarea
                                                 value={studyText}
                                                 onChange={(e) => setStudyText(e.target.value)}
                                                 style={{ fontSize: `${studyFontSize}px` }}
                                                 dir="auto"
-                                                className={`w-full min-h-[500px] bg-slate-950/50 border border-white/10 rounded-2xl p-6 text-slate-100 leading-relaxed focus:outline-none focus:border-amber-500/40 transition-all ${studyFontFamily}`}
+                                                className={`w-full min-h-[500px] border rounded-2xl p-6 text-slate-100 leading-relaxed focus:outline-none focus:border-amber-400/40 focus:ring-2 focus:ring-amber-500/10 transition-all ${studyFontFamily} ${
+                                                    isCandleLit ? 'bg-[#151824] text-amber-100 border-amber-500/30' : 'bg-slate-950/60 border-white/10'
+                                                }`}
                                                 placeholder="ابدأ بكتابة أو لصق محاضراتك هنا للمذاكرة الهادئة..."
                                             />
                                             <div className="absolute bottom-4 left-4 text-[9px] text-slate-500 font-mono">
@@ -1734,223 +1893,352 @@
 
                             </div>
 
-                            {/* القسم الأيسر (col-span-4): متعقب العادات المطور والأدوات */}
-                            <div className="lg:col-span-4 space-y-6">
-                                
-                                {/* متعقب العادات اليومية المصلح بالكامل (Image 1 Fixed) */}
-                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-white/20 transition duration-300">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h2 className="text-xs uppercase font-bold text-white flex items-center gap-2">
-                                            <span className="text-teal-400 text-lg">⚡</span> متعقب العادات اليومية
-                                        </h2>
-                                        
-                                        <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-1 rounded-xl border border-white/5">
-                                            <span className="text-[8px] text-slate-400">البداية:</span>
-                                            <select 
-                                                value={startOfWeek} 
-                                                onChange={(e) => setStartOfWeek(e.target.value)}
-                                                className="bg-transparent text-[8px] text-teal-400 font-bold focus:outline-none cursor-pointer"
-                                            >
-                                                <option value="Saturday" className="bg-slate-950 text-white">السبت</option>
-                                                <option value="Sunday" className="bg-slate-950 text-white">الأحد</option>
-                                                <option value="Monday" className="bg-slate-950 text-white">الاثنين</option>
-                                                <option value="Tuesday" className="bg-slate-950 text-white">الثلاثاء</option>
-                                                <option value="Wednesday" className="bg-slate-950 text-white">الأربعاء</option>
-                                                <option value="Thursday" className="bg-slate-950 text-white">الخميس</option>
-                                                <option value="Friday" className="bg-slate-950 text-white">الجمعة</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        {habits.map(h => {
-                                            const { completedCount, percentage } = calculateHabitPercentageForWeek(h.completedDates, weekDays);
-                                            return (
-                                                <div key={h.id} className="bg-slate-950/40 border border-white/5 rounded-2xl p-4 relative hover:border-white/10 transition">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <h4 className="text-xs font-bold text-slate-200">{h.name}</h4>
-                                                            <p className="text-[9px] text-slate-400 mt-0.5">
-                                                                {completedCount} من أصل 7 أيام متتالية ({percentage}%)
-                                                            </p>
-                                                        </div>
-                                                        <button 
-                                                            onClick={() => handleDeleteHabit(h.id)}
-                                                            className="text-[9px] text-rose-400 font-semibold hover:underline"
-                                                        >
-                                                            حذف
-                                                        </button>
-                                                    </div>
-
-                                                    {/* شبكة الأيام السبعة المصلحة تماماً للتوافق السلس والكامل للمظهر */}
-                                                    <div className="grid grid-cols-7 gap-1 mt-3 w-full">
-                                                        {weekDays.map((day, dIdx) => {
-                                                            const isDone = h.completedDates && h.completedDates.includes(day.fullDate);
-                                                            return (
-                                                                <button
-                                                                    key={dIdx}
-                                                                    onClick={() => toggleHabitDay(h.id, day.fullDate)}
-                                                                    className={`flex flex-col items-center justify-center p-1 rounded-xl transition-all min-w-0 h-12 border ${
-                                                                        isDone 
-                                                                        ? 'bg-gradient-to-b from-teal-400 to-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(20,184,166,0.45)] scale-105 border-transparent font-black' 
-                                                                        : 'bg-slate-900/60 text-slate-400 border border-white/5 hover:border-white/20'
-                                                                    }`}
-                                                                    title={`${day.nameShort} - ${day.fullDate}`}
-                                                                >
-                                                                    <span className="text-[8px] font-bold block truncate w-full text-center">{day.nameShort}</span>
-                                                                    <span className="text-[11px] font-black block mt-0.5">{day.dayNum}</span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <form onSubmit={handleAddHabit} className="flex gap-2 mt-4">
-                                        <input 
-                                            type="text"
-                                            required
-                                            value={newHabitName}
-                                            onChange={(e) => setNewHabitName(e.target.value)}
-                                            placeholder="إضافة عادة جديدة..."
-                                            className="flex-1 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
-                                        />
-                                        <button 
-                                            type="submit"
-                                            className="w-8 h-8 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-bold text-sm hover:bg-teal-400 transition"
-                                        >
-                                            +
-                                        </button>
-                                    </form>
-                                </div>
-
-                                {/* الامتنان والمزاج اليومي */}
-                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-white/20 transition duration-300">
-                                    <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-                                        <span className="text-teal-400 text-lg">🌿</span> مساحة الهدوء والامتنان
-                                    </h2>
-
-                                    <div className="mb-4">
-                                        <p className="text-[10px] uppercase font-bold text-slate-300 mb-2">كيف تصف مزاجك الحالي؟</p>
-                                        <div className="flex justify-between gap-1 bg-slate-950/40 p-2 rounded-2xl border border-white/5">
-                                            {['😊', '😐', '😔', '⚡', '🍃'].map((emoji) => (
-                                                <button
-                                                    key={emoji}
-                                                    onClick={() => setCurrentMood(emoji)}
-                                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all ${
-                                                        currentMood === emoji 
-                                                        ? 'bg-gradient-to-tr from-teal-500/20 to-indigo-500/20 border border-teal-500 shadow-[0_0_12px_rgba(20,184,166,0.35)] scale-110' 
-                                                        : 'hover:bg-white/5'
-                                                    }`}
+                            {/* القسم الأيسر: متعقب العادات والأدوات الجانبية - يتم إخفاؤه تلقائياً لكي يأخذ صالون القراءة عرض الشاشة بالكامل عند التفعيل */}
+                            {activeTab !== 'study' && (
+                                <div className="lg:col-span-4 space-y-6 transition-all duration-500">
+                                    
+                                    {/* متعقب العادات اليومية المصلح بالكامل (Image 1 Fixed) */}
+                                    <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-white/20 transition duration-300">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h2 className="text-xs uppercase font-bold text-white flex items-center gap-2">
+                                                <span className="text-teal-400 text-lg">⚡</span> متعقب العادات اليومية
+                                            </h2>
+                                            
+                                            <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-1 rounded-xl border border-white/5">
+                                                <span className="text-[8px] text-slate-400">البداية:</span>
+                                                <select 
+                                                    value={startOfWeek} 
+                                                    onChange={(e) => setStartOfWeek(e.target.value)}
+                                                    className="bg-transparent text-[8px] text-teal-400 font-bold focus:outline-none cursor-pointer"
                                                 >
-                                                    {emoji}
-                                                </button>
-                                            ))}
+                                                    <option value="Saturday" className="bg-slate-950 text-white">السبت</option>
+                                                    <option value="Sunday" className="bg-slate-950 text-white">الأحد</option>
+                                                    <option value="Monday" className="bg-slate-950 text-white">الاثنين</option>
+                                                    <option value="Tuesday" className="bg-slate-950 text-white">الثلاثاء</option>
+                                                    <option value="Wednesday" className="bg-slate-950 text-white">الأربعاء</option>
+                                                    <option value="Thursday" className="bg-slate-950 text-white">الخميس</option>
+                                                    <option value="Friday" className="bg-slate-950 text-white">الجمعة</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div>
-                                        <label className="text-[10px] uppercase font-bold text-slate-300 block mb-1">شيء تود شكر الله والامتنان لوجوده اليوم:</label>
-                                        <textarea
-                                            value={gratitudeText}
-                                            onChange={(e) => setGratitudeText(e.target.value)}
-                                            placeholder="كوب قهوة، تقدم بسيط بالبرمجة، يوم هادئ..."
-                                            className="w-full bg-slate-950/60 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition min-h-[90px] resize-none"
-                                        />
-                                    </div>
-                                </div>
+                                        <div className="space-y-4">
+                                            {habits.map(h => {
+                                                const { completedCount, percentage } = calculateHabitPercentageForWeek(h.completedDates, weekDays);
+                                                return (
+                                                    <div key={h.id} className="bg-slate-950/40 border border-white/5 rounded-2xl p-4 relative hover:border-white/10 transition">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <h4 className="text-xs font-bold text-slate-200">{h.name}</h4>
+                                                                <p className="text-[9px] text-slate-400 mt-0.5">
+                                                                    {completedCount} من أصل 7 أيام متتالية ({percentage}%)
+                                                                </p>
+                                                            </div>
+                                                            <button 
+                                                                onClick={() => handleDeleteHabit(h.id)}
+                                                                className="text-[9px] text-rose-400 font-semibold hover:underline"
+                                                            >
+                                                                حذف
+                                                            </button>
+                                                        </div>
 
-                                {/* إضافة مهمة تركيز جديدة */}
-                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
-                                    <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2 mb-4">
-                                        <span>📝</span> إضافة مهمة تركيز جديدة
-                                    </h2>
+                                                        {/* شبكة الأيام السبعة المصلحة تماماً للتوافق السلس والكامل للمظهر */}
+                                                        <div className="grid grid-cols-7 gap-1 mt-3 w-full">
+                                                            {weekDays.map((day, dIdx) => {
+                                                                const isDone = h.completedDates && h.completedDates.includes(day.fullDate);
+                                                                return (
+                                                                    <button
+                                                                        key={dIdx}
+                                                                        onClick={() => toggleHabitDay(h.id, day.fullDate)}
+                                                                        className={`flex flex-col items-center justify-center p-1 rounded-xl transition-all min-w-0 h-12 border ${
+                                                                            isDone 
+                                                                            ? 'bg-gradient-to-b from-teal-400 to-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(20,184,166,0.45)] scale-105 border-transparent font-black' 
+                                                                            : 'bg-slate-900/60 text-slate-400 border border-white/5 hover:border-white/20'
+                                                                        }`}
+                                                                        title={`${day.nameShort} - ${day.fullDate}`}
+                                                                    >
+                                                                        <span className="text-[8px] font-bold block truncate w-full text-center">{day.nameShort}</span>
+                                                                        <span className="text-[11px] font-black block mt-0.5">{day.dayNum}</span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
 
-                                    <form onSubmit={handleAddTask} className="space-y-3.5">
-                                        <div>
-                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">اسم المهمة</label>
+                                        <form onSubmit={handleAddHabit} className="flex gap-2 mt-4">
                                             <input 
                                                 type="text"
                                                 required
-                                                value={formTitle}
-                                                onChange={(e) => setFormTitle(e.target.value)}
-                                                placeholder="مثلاً: مراجعة الكود، حل ثغرات الأمان..."
-                                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                                value={newHabitName}
+                                                onChange={(e) => setNewHabitName(e.target.value)}
+                                                placeholder="إضافة عادة جديدة..."
+                                                className="flex-1 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
                                             />
-                                        </div>
-                                        <div>
-                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">ملاحظات إضافية</label>
-                                            <input 
-                                                type="text"
-                                                value={formNotes}
-                                                onChange={(e) => setFormNotes(e.target.value)}
-                                                placeholder="أهداف فرعية للمهمة..."
-                                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <label className="text-[9px] uppercase font-bold text-slate-400">التصنيف</label>
-                                                    <button type="button" onClick={() => setShowCategoryModal(true)} className="text-[8px] text-teal-400 font-semibold hover:underline">تعديل</button>
-                                                </div>
-                                                <select 
-                                                    value={formCategory}
-                                                    onChange={(e) => setFormCategory(e.target.value)}
-                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
-                                                >
-                                                    {categories.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الوقت التقديري (دقيقة)</label>
-                                                <input 
-                                                    type="number"
-                                                    value={formEstTime}
-                                                    onChange={(e) => setFormEstTime(e.target.value)}
-                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none mono"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الأولية</label>
-                                                <select 
-                                                    value={formPriority}
-                                                    onChange={(e) => setFormPriority(e.target.value)}
-                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
-                                                >
-                                                    <option value="Low" className="bg-slate-900">منخفضة</option>
-                                                    <option value="Medium" className="bg-slate-900">متوسطة</option>
-                                                    <option value="High" className="bg-slate-900">عالية 🔥</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">التاريخ</label>
-                                                <input 
-                                                    type="date"
-                                                    value={formDate}
-                                                    onChange={(e) => setFormDate(e.target.value)}
-                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none mono"
-                                                />
-                                            </div>
-                                        </div>
-                                        <button 
-                                            type="submit"
-                                            className="w-full bg-gradient-to-r from-teal-500 to-indigo-500 hover:from-teal-400 hover:to-indigo-400 text-slate-950 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-md"
-                                        >
-                                            + إضافة المهمة
-                                        </button>
-                                    </form>
-                                </div>
+                                            <button 
+                                                type="submit"
+                                                className="w-8 h-8 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-bold text-sm hover:bg-teal-400 transition"
+                                            >
+                                                +
+                                            </button>
+                                        </form>
+                                    </div>
 
-                            </div>
+                                    {/* الامتنان والمزاج اليومي */}
+                                    <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-white/20 transition duration-300">
+                                        <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                                            <span className="text-teal-400 text-lg">🌿</span> مساحة الهدوء والامتنان
+                                        </h2>
+
+                                        <div className="mb-4">
+                                            <p className="text-[10px] uppercase font-bold text-slate-300 mb-2">كيف تصف مزاجك الحالي؟</p>
+                                            <div className="flex justify-between gap-1 bg-slate-950/40 p-2 rounded-2xl border border-white/5">
+                                                {['😊', '😐', '😔', '⚡', '🍃'].map((emoji) => (
+                                                    <button
+                                                        key={emoji}
+                                                        onClick={() => setCurrentMood(emoji)}
+                                                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all ${
+                                                            currentMood === emoji 
+                                                            ? 'bg-gradient-to-tr from-teal-500/20 to-indigo-500/20 border border-teal-500 shadow-[0_0_12px_rgba(20,184,166,0.35)] scale-110' 
+                                                            : 'hover:bg-white/5'
+                                                        }`}
+                                                    >
+                                                        {emoji}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-[10px] uppercase font-bold text-slate-300 block mb-1">شيء تود شكر الله والامتنان لوجوده اليوم:</label>
+                                            <textarea
+                                                value={gratitudeText}
+                                                onChange={(e) => setGratitudeText(e.target.value)}
+                                                placeholder="كوب قهوة، تقدم بسيط بالبرمجة، يوم هادئ..."
+                                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition min-h-[90px] resize-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* إضافة مهمة تركيز جديدة */}
+                                    <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
+                                        <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2 mb-4">
+                                            <span>📝</span> إضافة مهمة تركيز جديدة
+                                        </h2>
+
+                                        <form onSubmit={handleAddTask} className="space-y-3.5">
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">اسم المهمة</label>
+                                                <input 
+                                                    type="text"
+                                                    required
+                                                    value={formTitle}
+                                                    onChange={(e) => setFormTitle(e.target.value)}
+                                                    placeholder="مثلاً: مراجعة الكود، حل ثغرات الأمان..."
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">ملاحظات إضافية</label>
+                                                <input 
+                                                    type="text"
+                                                    value={formNotes}
+                                                    onChange={(e) => setFormNotes(e.target.value)}
+                                                    placeholder="أهداف فرعية للمهمة..."
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                                />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-[9px] uppercase font-bold text-slate-400">التصنيف</label>
+                                                        <button type="button" onClick={() => setShowCategoryModal(true)} className="text-[8px] text-teal-400 font-semibold hover:underline">تعديل</button>
+                                                    </div>
+                                                    <select 
+                                                        value={formCategory}
+                                                        onChange={(e) => setFormCategory(e.target.value)}
+                                                        className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
+                                                    >
+                                                        {categories.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الوقت التقديري (دقيقة)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={formEstTime}
+                                                        onChange={(e) => setFormEstTime(e.target.value)}
+                                                        className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none mono"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الأولية</label>
+                                                    <select 
+                                                        value={formPriority}
+                                                        onChange={(e) => setFormPriority(e.target.value)}
+                                                        className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
+                                                    >
+                                                        <option value="Low" className="bg-slate-900">منخفضة</option>
+                                                        <option value="Medium" className="bg-slate-900">متوسطة</option>
+                                                        <option value="High" className="bg-slate-900">عالية 🔥</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">التاريخ</label>
+                                                    <input 
+                                                        type="date"
+                                                        value={formDate}
+                                                        onChange={(e) => setFormDate(e.target.value)}
+                                                        className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none mono"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button 
+                                                type="submit"
+                                                className="w-full bg-gradient-to-r from-teal-500 to-indigo-500 hover:from-teal-400 hover:to-indigo-400 text-slate-950 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-md"
+                                            >
+                                                + إضافة المهمة
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                </div>
+                            )}
 
                         </div>
 
                     </div>
+
+                    {/* --- نافذة وضع الرفاهية والترفيه المفتوحة بالكامل (Luxury Modal) --- */}
+                    {isLuxuryMode && (
+                        <div className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl p-6 flex flex-col animate-fadeIn overflow-y-auto">
+                            {/* هيدر شاشة الرفاهية */}
+                            <div className="flex flex-col sm:flex-row justify-between items-center border-b border-white/10 pb-4 mb-6 gap-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">🍿</span>
+                                    <div>
+                                        <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 font-mono tracking-widest">
+                                            LUXURY LOUNGE / صالون الترفيه والرفاهية
+                                        </h2>
+                                        <p className="text-[10px] text-slate-400">استرخِ قليلاً، العب واستمتع بوقتك، ثم عد بتركيز ونشاط</p>
+                                    </div>
+                                </div>
+
+                                {/* مؤقت وضع الرفاهية والزر */}
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-pink-500/10 border border-pink-500/20 px-4 py-2 rounded-2xl flex items-center gap-2">
+                                        <span className="text-pink-400 text-xs font-bold animate-pulse">⏳ وقت الرفاهية الحالي:</span>
+                                        <span className="font-mono text-sm font-bold text-white tracking-widest">{formatDigitalTimer(luxurySeconds)}</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setIsLuxuryMode(false);
+                                            stopAmbient();
+                                        }} 
+                                        className="bg-white text-slate-950 font-black px-5 py-2.5 rounded-2xl text-xs hover:scale-105 transition"
+                                    >
+                                        إغلاق والعودة للعمل ✕
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* شبكة محتويات صالون الرفاهية */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 items-start">
+                                {/* لوحة التحكم وإضافة المحتويات الترفيهية الجانبية */}
+                                <div className="lg:col-span-4 bg-slate-900/50 border border-white/10 p-5 rounded-3xl space-y-4">
+                                    {/* أزرار التبويب الداخلي */}
+                                    <div className="grid grid-cols-3 gap-1.5 bg-black/45 p-1 rounded-xl border border-white/5">
+                                        <button 
+                                            onClick={() => setActiveLuxuryCat('movies')}
+                                            className={`py-2 text-[10px] font-bold rounded-lg transition ${activeLuxuryCat === 'movies' ? 'bg-pink-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            🎬 أفلام سينما
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveLuxuryCat('videos')}
+                                            className={`py-2 text-[10px] font-bold rounded-lg transition ${activeLuxuryCat === 'videos' ? 'bg-pink-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            📺 فيديوهات
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveLuxuryCat('games')}
+                                            className={`py-2 text-[10px] font-bold rounded-lg transition ${activeLuxuryCat === 'games' ? 'bg-pink-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'}`}
+                                        >
+                                            🎮 ألعاب
+                                        </button>
+                                    </div>
+
+                                    {/* قوائم المحتويات الترفيهية الفردية */}
+                                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                                        {activeLuxuryCat === 'movies' && luxuryMovies.map(item => (
+                                            <div key={item.id} className={`flex justify-between items-center p-3 rounded-xl border text-xs transition cursor-pointer ${activeLuxuryItemUrl === item.url ? 'bg-pink-500/10 border-pink-500/40 text-pink-300' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'}`}>
+                                                <span onClick={() => setActiveLuxuryUrl(item.url)} className="font-bold flex-1">{item.title}</span>
+                                                <button onClick={() => handleDeleteLuxuryItem('movies', item.id)} className="text-slate-500 hover:text-rose-400 p-1">✕</button>
+                                            </div>
+                                        ))}
+                                        {activeLuxuryCat === 'videos' && luxuryVideos.map(item => (
+                                            <div key={item.id} className={`flex justify-between items-center p-3 rounded-xl border text-xs transition cursor-pointer ${activeLuxuryItemUrl === item.url ? 'bg-pink-500/10 border-pink-500/40 text-pink-300' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'}`}>
+                                                <span onClick={() => setActiveLuxuryUrl(item.url)} className="font-bold flex-1">{item.title}</span>
+                                                <button onClick={() => handleDeleteLuxuryItem('videos', item.id)} className="text-slate-500 hover:text-rose-400 p-1">✕</button>
+                                            </div>
+                                        ))}
+                                        {activeLuxuryCat === 'games' && luxuryGames.map(item => (
+                                            <div key={item.id} className={`flex justify-between items-center p-3 rounded-xl border text-xs transition cursor-pointer ${activeLuxuryItemUrl === item.url ? 'bg-pink-500/10 border-pink-500/40 text-pink-300' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'}`}>
+                                                <span onClick={() => setActiveLuxuryUrl(item.url)} className="font-bold flex-1">{item.title}</span>
+                                                <button onClick={() => handleDeleteLuxuryItem('games', item.id)} className="text-slate-500 hover:text-rose-400 p-1">✕</button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* نموذج إضافة محتوى ترفيهي جديد وتحديث المكتبة بذكاء */}
+                                    <div className="border-t border-white/5 pt-4 space-y-2.5">
+                                        <h3 className="text-[10px] uppercase font-bold text-slate-400">إضافة محتوى ترفيهي جديد ➕</h3>
+                                        <input 
+                                            type="text"
+                                            value={newLuxTitle}
+                                            onChange={(e) => setNewLuxTitle(e.target.value)}
+                                            placeholder="العنوان (مثلاً: فيلم الخيال العلمي المفضل)..."
+                                            className="w-full bg-black/45 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none"
+                                        />
+                                        <input 
+                                            type="text"
+                                            value={newLuxUrl}
+                                            onChange={(e) => setNewLuxUrl(e.target.value)}
+                                            placeholder="الصق الرابط (يوتيوب أو موقع لعبة)..."
+                                            className="w-full bg-black/45 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none"
+                                        />
+                                        <button 
+                                            onClick={handleAddLuxuryItem}
+                                            className="w-full bg-pink-500 text-slate-950 font-bold py-2 rounded-xl text-xs transition hover:bg-pink-400"
+                                        >
+                                            إضافة وتحديث المكتبة
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* مشغل العرض التفاعلي للمحتوى الترفيهي المختار */}
+                                <div className="lg:col-span-8 bg-slate-900/50 border border-white/10 p-4 rounded-3xl flex flex-col h-[520px]">
+                                    {activeLuxuryItemUrl ? (
+                                        <iframe 
+                                            src={activeLuxuryItemUrl} 
+                                            className="w-full h-full rounded-2xl bg-black" 
+                                            allowFullScreen 
+                                            allow="autoplay; encrypted-media"
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                                            <span className="text-4xl mb-2">📺</span>
+                                            <span className="text-xs">يرجى تحديد فيلم، فيديو أو لعبة من القائمة لعرضها هنا.</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* --- نافذة تعديل وإضافة التصنيفات --- */}
                     {showCategoryModal && (
@@ -2037,4 +2325,3 @@
     </script>
 </body>
 </html>
-```
