@@ -1,0 +1,1651 @@
+```html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ѕнα∂σωѕρα¢є - مساحة التركيز والهدوء الذهني</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & Babel CDNs -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Cairo & JetBrains Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-attachment: fixed;
+            background-size: cover;
+            transition: background-image 1.2s ease-in-out, all 0.8s ease-in-out;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* مظهر التمرير المخصص الأنيق */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(13, 15, 18, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(20, 184, 166, 0.2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(20, 184, 166, 0.6);
+        }
+    </style>
+</head>
+<body class="text-[#e2e8f0] min-h-screen antialiased relative">
+
+    <!-- طبقة تأثير الزجاج الخلفية المتغيرة -->
+    <div id="scenic-overlay" class="fixed inset-0 -z-10 transition-all duration-1000"></div>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // مكتبة خلفيات طبيعة سويسرا المهدئة للأعصاب
+        const SWISS_NATURE_BACKGROUNDS = [
+            { name: "وادي لاوتربرونين والشلالات السويسرية ⛰️", url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80" },
+            { name: "بحيرة أوشينينسي الفيروزية الهادئة 🏞️", url: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1920&q=80" },
+            { name: "قمم جبال الألب الخضراء تحت أشعة الشمس 🏔️", url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1920&q=80" },
+            { name: "مجرى مائي صخري وسط الغابات السويسرية 🌲", url: "https://images.unsplash.com/photo-1531804055935-76f44d7c3621?auto=format&fit=crop&w=1920&q=80" },
+            { name: "حقول جبل إيجر والأزهار الملونة 🌸", url: "https://images.unsplash.com/photo-1527668713044-92711afea59b?auto=format&fit=crop&w=1920&q=80" },
+            { name: "ضباب الصباح يغمر غابات جبال الألب 🌫️", url: "https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1920&q=80" }
+        ];
+
+        // ==========================================
+        //  الدوال المساعدة للحسابات الزمنية والتواريخ
+        // ==========================================
+        const formatDateToYMD = (dateObj) => {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const getArabicDateLabel = (dateObj) => {
+            return dateObj.toLocaleDateString('ar-EG', { day: 'numeric', month: 'long' });
+        };
+
+        // دالة حساب السبعة أيام متتالية بدقة بناء على خيار البداية المختار
+        const getWeekDays = (startDayName, referenceDate) => {
+            const daysOfWeekEN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const startDayIdx = daysOfWeekEN.indexOf(startDayName);
+            
+            const refDayIdx = referenceDate.getDay();
+            
+            // حساب الفارق للوصول ليوم البداية الفعلي للأسبوع الحالي
+            let diff = refDayIdx - startDayIdx;
+            if (diff < 0) diff += 7;
+            
+            const startDate = new Date(referenceDate);
+            startDate.setDate(referenceDate.getDate() - diff);
+            
+            const weekDays = [];
+            const arDays = ["أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
+            
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startDate);
+                d.setDate(startDate.getDate() + i);
+                weekDays.push({
+                    nameShort: arDays[d.getDay()],
+                    dateStr: `${d.getDate()}/${d.getMonth() + 1}`,
+                    fullDate: formatDateToYMD(d),
+                    dayNum: d.getDate()
+                });
+            }
+            return weekDays;
+        };
+
+        // توليد الهيت ماب لسنة كاملة (يوليو 2026 حتي يوليو 2027)
+        const generateHeatmapGrid = () => {
+            const grid = [];
+            let currentDay = new Date(2026, 5, 28); // الأحد الأخير من يونيو لموازنة الأعمدة
+            const endDate = new Date(2027, 6, 4); // الأسبوع الأول من يوليو 2027
+            while (currentDay <= endDate) {
+                const week = [];
+                for (let i = 0; i < 7; i++) {
+                    const dateStr = formatDateToYMD(currentDay);
+                    week.push({ dateStr });
+                    currentDay.setDate(currentDay.getDate() + 1);
+                }
+                grid.push(week);
+            }
+            return grid;
+        };
+
+        const heatmapGrid = generateHeatmapGrid();
+
+        // ==========================================
+        //  مكون التطبيق الأساسي
+        // ==========================================
+        function App() {
+            const [liveTime, setLiveTime] = useState(new Date());
+
+            // حالات الخلفية (سواء الجاهزة الطبيعية أو المرفوعة يدوياً)
+            const [bgMode, setBgMode] = useState(() => {
+                return localStorage.getItem('shadow_bg_mode') || 'preset';
+            });
+            const [bgIndex, setBgIndex] = useState(() => {
+                const saved = localStorage.getItem('shadow_bg_idx');
+                return saved ? parseInt(saved, 10) : 0;
+            });
+            const [customBg, setCustomBg] = useState(() => {
+                return localStorage.getItem('shadow_custom_bg') || '';
+            });
+
+            const [dimPanels, setDimPanels] = useState(false);
+            
+            const [categories, setCategories] = useState(() => {
+                const saved = localStorage.getItem('shadow_categories_v4');
+                return saved ? JSON.parse(saved) : ["البرمجة", "الأمن السيبراني", "شهادة CC", "اللغة الإنجليزية", "تطوير الذات"];
+            });
+
+            const [tasks, setTasks] = useState(() => {
+                const saved = localStorage.getItem('shadow_tasks_v4');
+                return saved ? JSON.parse(saved) : [
+                    {
+                        id: 1,
+                        title: "تطوير منطق متعقب العادات وإصلاح الأيام",
+                        notes: "حل مشكلة الأيام السبعة وهيدر الموقع المتكدس",
+                        category: "البرمجة",
+                        estTime: 60,
+                        actualTime: 1800,
+                        priority: "High",
+                        status: "In Progress",
+                        date: formatDateToYMD(new Date())
+                    }
+                ];
+            });
+
+            const [activeTaskId, setActiveTaskId] = useState(null);
+
+            // تشغيل الأصوات
+            const [ambientPlaying, setAmbientPlaying] = useState(false);
+            const [ambientSound, setAmbientSound] = useState('wind'); 
+            const [ambientVolume, setAmbientVolume] = useState(0.4); 
+
+            const audioCtxRef = useRef(null);
+            const gainNodeRef = useRef(null);
+            const rainIntervalRef = useRef(null);
+
+            // حقول النماذج
+            const [formTitle, setFormTitle] = useState('');
+            const [formNotes, setFormNotes] = useState('');
+            const [formCategory, setFormCategory] = useState('البرمجة');
+            const [formEstTime, setFormEstTime] = useState('45');
+            const [formPriority, setFormPriority] = useState('Medium');
+            const [formDate, setFormDate] = useState(() => formatDateToYMD(new Date()));
+
+            // متعقب العادات
+            const [startOfWeek, setStartOfWeek] = useState(() => {
+                return localStorage.getItem('shadow_startofweek_v4') || 'Saturday';
+            });
+            const [habits, setHabits] = useState(() => {
+                const saved = localStorage.getItem('shadow_habits_v4');
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, name: "شرب 3 لتر ماء", completedDates: [] },
+                    { id: 2, name: "ممارسة البرمجة والمذاكرة", completedDates: [] },
+                    { id: 3, name: "جلسة قراءة وتطوير ذات", completedDates: [] }
+                ];
+            });
+            const [newHabitName, setNewHabitName] = useState('');
+
+            // الامتنان والمزاج
+            const [currentMood, setCurrentMood] = useState(() => {
+                return localStorage.getItem('shadow_mood_v4') || '😊';
+            });
+            const [gratitudeText, setGratitudeText] = useState(() => {
+                return localStorage.getItem('shadow_gratitude_v4') || '';
+            });
+
+            // الفلترة
+            const [searchQuery, setSearchQuery] = useState('');
+            const [filterDate, setFilterDate] = useState('All');
+            const [filterCategory, setFilterCategory] = useState('All Categories');
+            const [filterStatus, setFilterStatus] = useState('All Statuses');
+            const [sortBy, setSortBy] = useState('Newest First');
+
+            // النوافذ المنبثقة
+            const [showCategoryModal, setShowCategoryModal] = useState(false);
+            const [newCategoryName, setNewCategoryName] = useState('');
+            const [editingTask, setEditingTask] = useState(null);
+
+            // المزامنة مع التخزين المحلي
+            useEffect(() => {
+                localStorage.setItem('shadow_categories_v4', JSON.stringify(categories));
+            }, [categories]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_tasks_v4', JSON.stringify(tasks));
+            }, [tasks]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_habits_v4', JSON.stringify(habits));
+            }, [habits]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_startofweek_v4', startOfWeek);
+            }, [startOfWeek]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_mood_v4', currentMood);
+            }, [currentMood]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_gratitude_v4', gratitudeText);
+            }, [gratitudeText]);
+
+            useEffect(() => {
+                localStorage.setItem('shadow_bg_idx', bgIndex);
+                localStorage.setItem('shadow_bg_mode', bgMode);
+            }, [bgIndex, bgMode]);
+
+            // المؤقت الحركي للساعة
+            useEffect(() => {
+                const timer = setInterval(() => setLiveTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            // تفعيل الخلفية الفورية
+            useEffect(() => {
+                if (bgMode === 'custom' && customBg) {
+                    document.body.style.backgroundImage = `url('${customBg}')`;
+                } else {
+                    document.body.style.backgroundImage = `url('${SWISS_NATURE_BACKGROUNDS[bgIndex].url}')`;
+                }
+            }, [bgIndex, bgMode, customBg]);
+
+            // تبديل الخلفية الجاهزة
+            const handleBackgroundSwitch = () => {
+                setBgMode('preset');
+                setBgIndex((prev) => (prev + 1) % SWISS_NATURE_BACKGROUNDS.length);
+            };
+
+            // رفع خلفية مخصصة من الجهاز
+            const handleCustomBgUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64String = reader.result;
+                        try {
+                            localStorage.setItem('shadow_custom_bg', base64String);
+                            setCustomBg(base64String);
+                            setBgMode('custom');
+                        } catch (err) {
+                            alert("تم تفعيل الخلفية المخصصة بنجاح لجلسة العمل الحالية!");
+                            setCustomBg(base64String);
+                            setBgMode('custom');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            // طبقة التظليل والزجاج للموقع
+            useEffect(() => {
+                const overlay = document.getElementById('scenic-overlay');
+                if (overlay) {
+                    if (dimPanels) {
+                        overlay.className = "fixed inset-0 -z-10 bg-slate-950/15 backdrop-blur-none transition-all duration-1000";
+                    } else {
+                        overlay.className = "fixed inset-0 -z-10 bg-gradient-to-br from-slate-950/45 via-slate-900/20 to-slate-950/50 backdrop-blur-[2px] transition-all duration-1000";
+                    }
+                }
+            }, [dimPanels]);
+
+            // عداد الوقت للمهمة النشطة
+            useEffect(() => {
+                let interval = null;
+                if (activeTaskId !== null) {
+                    interval = setInterval(() => {
+                        setTasks(prev => prev.map(t => {
+                            if (t.id === activeTaskId) {
+                                return { ...t, actualTime: (t.actualTime || 0) + 1 };
+                            }
+                            return t;
+                        }));
+                    }, 1000);
+                }
+                return () => clearInterval(interval);
+            }, [activeTaskId]);
+
+            // محرك الأصوات المحيطية الطبيعية
+            const startAmbient = (type, vol) => {
+                stopAmbient();
+
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    audioCtxRef.current = ctx;
+
+                    const mainGain = ctx.createGain();
+                    mainGain.gain.setValueAtTime(vol * 0.5, ctx.currentTime);
+                    mainGain.connect(ctx.destination);
+                    gainNodeRef.current = mainGain;
+
+                    const bufferSize = 2 * ctx.sampleRate;
+                    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+
+                    if (type === 'wind') {
+                        const whiteNoise = ctx.createBufferSource();
+                        whiteNoise.buffer = noiseBuffer;
+                        whiteNoise.loop = true;
+
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = 'lowpass';
+                        filter.Q.value = 3.0;
+                        filter.frequency.setValueAtTime(320, ctx.currentTime);
+
+                        const osc = ctx.createOscillator();
+                        osc.type = 'sine';
+                        osc.frequency.value = 0.08; 
+                        
+                        const oscGain = ctx.createGain();
+                        oscGain.gain.value = 160;
+
+                        osc.connect(oscGain);
+                        oscGain.connect(filter.frequency);
+                        whiteNoise.connect(filter);
+                        filter.connect(mainGain);
+
+                        osc.start();
+                        whiteNoise.start();
+                    } else if (type === 'rain') {
+                        const whiteNoise = ctx.createBufferSource();
+                        whiteNoise.buffer = noiseBuffer;
+                        whiteNoise.loop = true;
+
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = 'bandpass';
+                        filter.frequency.setValueAtTime(1000, ctx.currentTime);
+                        filter.Q.value = 1.2;
+
+                        whiteNoise.connect(filter);
+                        filter.connect(mainGain);
+                        whiteNoise.start();
+
+                        const dropInterval = setInterval(() => {
+                            if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+                                try {
+                                    const osc = audioCtxRef.current.createOscillator();
+                                    const gain = audioCtxRef.current.createGain();
+                                    osc.type = 'sine';
+                                    osc.frequency.setValueAtTime(200 + Math.random() * 250, audioCtxRef.current.currentTime);
+                                    osc.frequency.exponentialRampToValueAtTime(35, audioCtxRef.current.currentTime + 0.06);
+
+                                    gain.gain.setValueAtTime(vol * 0.15, audioCtxRef.current.currentTime);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtxRef.current.currentTime + 0.06);
+
+                                    osc.connect(gain);
+                                    gain.connect(audioCtxRef.current.destination);
+                                    osc.start();
+                                    osc.stop(audioCtxRef.current.currentTime + 0.07);
+                                } catch(e){}
+                            }
+                        }, 220);
+                        rainIntervalRef.current = dropInterval;
+                    } else if (type === 'waves') {
+                        const whiteNoise = ctx.createBufferSource();
+                        whiteNoise.buffer = noiseBuffer;
+                        whiteNoise.loop = true;
+
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = 'lowpass';
+                        filter.frequency.setValueAtTime(180, ctx.currentTime);
+
+                        const osc = ctx.createOscillator();
+                        osc.type = 'sine';
+                        osc.frequency.value = 0.06; 
+                        
+                        const oscGain = ctx.createGain();
+                        oscGain.gain.value = 140;
+
+                        osc.connect(oscGain);
+                        oscGain.connect(filter.frequency);
+                        whiteNoise.connect(filter);
+                        filter.connect(mainGain);
+
+                        osc.start();
+                        whiteNoise.start();
+                    } else if (type === 'cosmic') {
+                        const osc1 = ctx.createOscillator();
+                        const osc2 = ctx.createOscillator();
+                        osc1.type = 'sawtooth';
+                        osc2.type = 'sine';
+
+                        osc1.frequency.setValueAtTime(90, ctx.currentTime); 
+                        osc2.frequency.setValueAtTime(90.6, ctx.currentTime);
+
+                        const filter = ctx.createBiquadFilter();
+                        filter.type = 'lowpass';
+                        filter.frequency.setValueAtTime(120, ctx.currentTime);
+                        filter.Q.value = 6.0;
+
+                        const lfo = ctx.createOscillator();
+                        lfo.frequency.value = 0.1;
+                        const lfoGain = ctx.createGain();
+                        lfoGain.gain.value = 40;
+
+                        lfo.connect(lfoGain);
+                        lfoGain.connect(filter.frequency);
+
+                        osc1.connect(filter);
+                        osc2.connect(filter);
+                        filter.connect(mainGain);
+
+                        lfo.start();
+                        osc1.start();
+                        osc2.start();
+                    }
+
+                    setAmbientPlaying(true);
+                } catch(e) {
+                    alert("برجاء النقر على أي مكان بالشاشة لتفعيل بث الأصوات بنجاح.");
+                }
+            };
+
+            const stopAmbient = () => {
+                if (rainIntervalRef.current) {
+                    clearInterval(rainIntervalRef.current);
+                }
+                if (audioCtxRef.current) {
+                    audioCtxRef.current.close();
+                }
+                setAmbientPlaying(false);
+            };
+
+            const toggleAmbient = () => {
+                if (ambientPlaying) {
+                    stopAmbient();
+                } else {
+                    startAmbient(ambientSound, ambientVolume);
+                }
+            };
+
+            const handleVolumeChange = (newVolume) => {
+                setAmbientVolume(newVolume);
+                if (gainNodeRef.current && audioCtxRef.current) {
+                    gainNodeRef.current.gain.setValueAtTime(newVolume * 0.5, audioCtxRef.current.currentTime);
+                }
+            };
+
+            const handleSoundChange = (soundType) => {
+                setAmbientSound(soundType);
+                if (ambientPlaying) {
+                    startAmbient(soundType, ambientVolume);
+                }
+            };
+
+            // دوال استيراد وتصدير البيانات المدعومة بـ JSON لإنهاء المشكلة
+            const handleExportData = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(
+                    JSON.stringify({
+                        tasks,
+                        categories,
+                        habits,
+                        currentMood,
+                        gratitudeText
+                    }, null, 2)
+                );
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `shadowspace_backup_${formatDateToYMD(new Date())}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+            };
+
+            const handleImportData = (e) => {
+                const fileReader = new FileReader();
+                if (e.target.files && e.target.files[0]) {
+                    fileReader.readAsText(e.target.files[0], "UTF-8");
+                    fileReader.onload = (event) => {
+                        try {
+                            const parsed = JSON.parse(event.target.result);
+                            if (parsed.tasks) setTasks(parsed.tasks);
+                            if (parsed.categories) setCategories(parsed.categories);
+                            if (parsed.habits) setHabits(parsed.habits);
+                            if (parsed.currentMood) setCurrentMood(parsed.currentMood);
+                            if (parsed.gratitudeText) setGratitudeText(parsed.gratitudeText);
+                            alert("تم استيراد البيانات بنجاح!");
+                        } catch (err) {
+                            alert("خطأ في قراءة ملف JSON أو تنسيقه غير صالح.");
+                        }
+                    };
+                }
+            };
+
+            const todayStr = formatDateToYMD(liveTime);
+            const yesterdayDate = new Date(liveTime);
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+            const yesterdayStr = formatDateToYMD(yesterdayDate);
+
+            // توليد السبعة أيام متتالية الحالية بناءً على اختيار يوم البداية
+            const weekDays = getWeekDays(startOfWeek, liveTime);
+
+            // إدارة العادات اليومية
+            const handleAddHabit = (e) => {
+                e.preventDefault();
+                if (!newHabitName.trim()) return;
+                const newHabit = {
+                    id: Date.now(),
+                    name: newHabitName.trim(),
+                    completedDates: []
+                };
+                setHabits([...habits, newHabit]);
+                setNewHabitName('');
+            };
+
+            const toggleHabitDay = (habitId, dateStr) => {
+                setHabits(habits.map(h => {
+                    if (h.id === habitId) {
+                        const currentDates = h.completedDates ? [...h.completedDates] : [];
+                        if (currentDates.includes(dateStr)) {
+                            return { ...h, completedDates: currentDates.filter(d => d !== dateStr) };
+                        } else {
+                            return { ...h, completedDates: [...currentDates, dateStr] };
+                        }
+                    }
+                    return h;
+                }));
+            };
+
+            const handleDeleteHabit = (habitId) => {
+                setHabits(habits.filter(h => h.id !== habitId));
+            };
+
+            const calculateHabitPercentageForWeek = (completedDates, weekDaysList) => {
+                let count = 0;
+                weekDaysList.forEach(wd => {
+                    if (completedDates && completedDates.includes(wd.fullDate)) {
+                        count++;
+                    }
+                });
+                return {
+                    completedCount: count,
+                    percentage: Math.round((count / 7) * 100)
+                };
+            };
+
+            // إدارة المهام
+            const handleAddTask = (e) => {
+                e.preventDefault();
+                if (!formTitle.trim()) return;
+                const newTask = {
+                    id: Date.now(),
+                    title: formTitle,
+                    notes: formNotes,
+                    category: formCategory,
+                    estTime: Number(formEstTime) || 0,
+                    actualTime: 0,
+                    priority: formPriority,
+                    status: 'Pending',
+                    date: formDate
+                };
+                setTasks([newTask, ...tasks]);
+                setFormTitle('');
+                setFormNotes('');
+                setFormEstTime('45');
+            };
+
+            const toggleTimer = (taskId) => {
+                if (activeTaskId === taskId) {
+                    setActiveTaskId(null);
+                } else {
+                    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'In Progress' } : t));
+                    setActiveTaskId(taskId);
+                }
+            };
+
+            const handleCompleteTask = (taskId) => {
+                setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'Completed' } : t));
+                if (activeTaskId === taskId) setActiveTaskId(null);
+            };
+
+            const handleCancelTask = (taskId) => {
+                setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'Cancelled' } : t));
+                if (activeTaskId === taskId) setActiveTaskId(null);
+            };
+
+            const handleDeleteTask = (taskId) => {
+                if (activeTaskId === taskId) setActiveTaskId(null);
+                setTasks(tasks.filter(t => t.id !== taskId));
+            };
+
+            const handleDuplicateTask = (task) => {
+                const duplicated = {
+                    ...task,
+                    id: Date.now(),
+                    title: task.title + " (نسخة)",
+                    actualTime: 0,
+                    status: 'Pending'
+                };
+                setTasks([duplicated, ...tasks]);
+            };
+
+            const handleSaveEdit = () => {
+                setTasks(tasks.map(t => t.id === editingTask.id ? editingTask : t));
+                if (editingTask.status !== 'In Progress' && activeTaskId === editingTask.id) {
+                    setActiveTaskId(null);
+                }
+                setEditingTask(null);
+            };
+
+            // تصنيفات مخصصة
+            const handleAddCategory = () => {
+                if (newCategoryName.trim() && !categories.includes(newCategoryName.trim())) {
+                    setCategories([...categories, newCategoryName.trim()]);
+                    setNewCategoryName('');
+                }
+            };
+
+            const handleDeleteCategory = (catName) => {
+                if (categories.length > 1) {
+                    setCategories(categories.filter(c => c !== catName));
+                    if (formCategory === catName) {
+                        setFormCategory(categories.find(c => c !== catName));
+                    }
+                } else {
+                    alert("يجب الإبقاء على تصنيف واحد على الأقل.");
+                }
+            };
+
+            const formatTime = (totalSecs) => {
+                const s = totalSecs % 60;
+                const m = Math.floor(totalSecs / 60) % 60;
+                const h = Math.floor(totalSecs / 3600);
+                
+                const sStr = s.toString().padStart(2, '0');
+                const mStr = m.toString().padStart(2, '0');
+                if (h > 0) {
+                    return `${h.toString().padStart(2, '0')}:${mStr}:${sStr}`;
+                }
+                return `${mStr}:${sStr}`;
+            };
+
+            const getHeatmapColor = (dateStr) => {
+                const completedOnDate = tasks.filter(t => t.date === dateStr && t.status === 'Completed').length;
+                if (completedOnDate === 0) return 'bg-white/[0.03]';
+                if (completedOnDate === 1) return 'bg-teal-950/40 border border-teal-500/20';
+                if (completedOnDate === 2) return 'bg-teal-800/50 border border-teal-400/30';
+                if (completedOnDate === 3) return 'bg-teal-500/70 border border-teal-300/40';
+                return 'bg-teal-400 border border-emerald-200'; 
+            };
+
+            // حساب المؤشرات العامة والتحليلات
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.status === 'Completed').length;
+            const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+            const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
+            const activeAndPendingCount = pendingTasks + inProgressTasks;
+            const cancelledTasks = tasks.filter(t => t.status === 'Cancelled').length;
+            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            const activeTask = tasks.find(t => t.id === activeTaskId);
+
+            const totalFocusSeconds = tasks.reduce((sum, t) => sum + (t.actualTime || 0), 0);
+            const totalFocusHours = Math.floor(totalFocusSeconds / 3600);
+            const totalFocusMinutes = Math.floor((totalFocusSeconds % 3600) / 60);
+            const totalActualHoursFloat = (totalFocusSeconds / 3600).toFixed(1);
+
+            const totalEstTimeMinutes = tasks.reduce((sum, t) => sum + (Number(t.estTime) || 0), 0);
+            const totalEstTimeHours = (totalEstTimeMinutes / 60).toFixed(0);
+
+            const uniqueActiveDaysCount = [...new Set(tasks.map(t => t.date))].length || 1;
+            const avgDailyHours = (totalFocusSeconds / 3600 / uniqueActiveDaysCount).toFixed(1);
+            
+            const avgTaskDurationMin = completedTasks > 0 
+                ? Math.round((tasks.filter(t => t.status === 'Completed').reduce((sum, t) => sum + (t.actualTime || 0), 0) / 60) / completedTasks)
+                : 0;
+            const estVsActualDiffMin = Math.abs(totalEstTimeMinutes - Math.round(totalFocusSeconds / 60));
+
+            const filteredTasks = tasks.filter(t => {
+                const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      t.notes.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                let matchesDate = true;
+                if (filterDate === 'Today') {
+                    matchesDate = t.date === todayStr;
+                } else if (filterDate === 'Yesterday') {
+                    matchesDate = t.date === yesterdayStr;
+                }
+
+                const matchesCat = filterCategory === 'All Categories' || t.category === filterCategory;
+                const matchesStatus = filterStatus === 'All Statuses' || t.status === filterStatus;
+
+                return matchesSearch && matchesDate && matchesCat && matchesStatus;
+            }).sort((a, b) => {
+                if (sortBy === 'Newest First') return b.id - a.id;
+                if (sortBy === 'Oldest First') return a.id - b.id;
+                if (sortBy === 'Priority High-Low') {
+                    const priorityWeight = { 'High': 3, 'Medium': 2, 'Low': 1 };
+                    return priorityWeight[b.priority] - priorityWeight[a.priority];
+                }
+                if (sortBy === 'Est. Time High-Low') return b.estTime - a.estTime;
+                return 0;
+            });
+
+            const getDailyWisdom = () => {
+                const now = new Date();
+                const start = new Date(now.getFullYear(), 0, 0);
+                const diff = now - start;
+                const oneDay = 1000 * 60 * 60 * 24;
+                const dayOfYear = Math.floor(diff / oneDay);
+                
+                const arabicWisdoms = [
+                    "التركيز الهادئ وسط الطبيعة هو البوابة السرية لكل إنجاز عظيم.",
+                    "الخطوات الهادئة والمستمرة تصنع فارقاً أعمق من السرعة العشوائية.",
+                    "العقل الصافي مثل بحيرة سويسرية ساكنة، يعكس الأفكار بوضوح تام.",
+                    "الإنتاجية بوعي تعني الاستمتاع بكل دقيقة عمل وهدوء في آن واحد.",
+                    "استقطع لحظة لتتأمل الطبيعة من حولك؛ فمنها يستلهم المبدعون أفكارهم."
+                ];
+                return arabicWisdoms[dayOfYear % arabicWisdoms.length];
+            };
+
+            return (
+                <div className="max-w-[1400px] mx-auto px-4 py-6 relative">
+                    
+                    {/* --- شريط المؤقت العائم عند التفعيل --- */}
+                    {activeTaskId !== null && activeTask && (
+                        <div className="sticky top-4 z-40 bg-slate-950/85 backdrop-blur-xl border border-teal-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 max-w-4xl mx-auto mb-8 shadow-[0_0_30px_rgba(20,184,166,0.15)] transition-all duration-300">
+                            <div className="flex items-center gap-3">
+                                <div className="relative w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-lg">
+                                    ⏳
+                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-teal-400 rounded-full animate-ping"></span>
+                                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-teal-400 rounded-full"></span>
+                                </div>
+                                <div>
+                                    <div className="text-[9px] uppercase font-bold tracking-widest text-teal-400">التركيز الحالي على المهمة:</div>
+                                    <div className="text-sm font-black text-white">{activeTask.title}</div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="bg-black/95 px-5 py-2 rounded-xl border border-white/10 font-mono text-xl font-bold text-teal-400 tracking-widest shadow-[inset_0_0_12px_rgba(20,184,166,0.25)] min-w-[100px] text-center">
+                                    {formatTime(activeTask.actualTime || 0)}
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                    <button 
+                                        onClick={() => toggleTimer(activeTaskId)}
+                                        className="px-3.5 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs font-bold hover:bg-amber-500/20 transition-all flex items-center gap-1"
+                                    >
+                                        ⏸ مؤقتاً
+                                    </button>
+                                    <button 
+                                        onClick={() => handleCompleteTask(activeTaskId)}
+                                        className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 text-slate-950 text-xs font-black hover:scale-105 transition-all flex items-center gap-1"
+                                    >
+                                        ✓ إنهاء
+                                    </button>
+                                    <button 
+                                        onClick={() => handleCancelTask(activeTaskId)}
+                                        className="px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-xs hover:bg-white/10 transition-all"
+                                    >
+                                        إلغاء
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- الهيدر الجديد المطور (Image 3 Redesigned) --- */}
+                    <header className="flex flex-col xl:flex-row justify-between items-center mb-8 bg-slate-950/30 border border-white/10 rounded-3xl p-6 backdrop-blur-xl shadow-2xl gap-6">
+                        
+                        {/* اليمين: الشعار والهوية المبتكرة */}
+                        <div className="flex items-center gap-4 w-full xl:w-auto justify-start">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-500 to-indigo-500 flex items-center justify-center text-slate-950 font-black tracking-widest text-2xl shadow-[0_0_20px_rgba(20,184,166,0.35)] hover:scale-105 transition duration-300">
+                                🌌
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-l from-teal-300 via-cyan-400 to-indigo-400 font-mono drop-shadow-[0_0_15px_rgba(34,211,238,0.25)]">
+                                    ѕнα∂σωѕρα¢є
+                                </h1>
+                                <p className="text-[10px] text-slate-400 font-semibold mt-0.5 tracking-wide">
+                                    مساحتك الهادئة للتركيز والإنتاجية بوعي وانسجام مع الطبيعة السويسرية
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* الوسط: منصة تشغيل الأصوات المحيطية الطبيعية */}
+                        <div className="flex flex-col items-center gap-2 bg-slate-900/55 p-3 rounded-2xl border border-white/10 w-full xl:w-auto max-w-lg shadow-[inset_0_0_15px_rgba(255,255,255,0.03)]">
+                            <div className="flex items-center justify-between w-full gap-4">
+                                <span className="text-[10px] uppercase font-bold text-slate-400">الخلفية الصوتية الطبيعية 🎧</span>
+                                <div className="flex gap-1">
+                                    {[['wind', 'رياح'], ['rain', 'مطر'], ['waves', 'أمواج'], ['cosmic', 'طنين']].map(([type, label]) => (
+                                        <button 
+                                            key={type}
+                                            onClick={() => handleSoundChange(type)} 
+                                            className={`px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all ${ambientSound === type ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'bg-white/5 text-slate-400'}`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 w-full border-t border-white/5 pt-2 mt-1">
+                                <button 
+                                    onClick={toggleAmbient}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-1.5 transition-all w-2/5 border ${
+                                        ambientPlaying 
+                                        ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]' 
+                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                    }`}
+                                >
+                                    <span className={`w-2 h-2 rounded-full ${ambientPlaying ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`}></span>
+                                    {ambientPlaying ? 'تشغيل ⏸' : 'إيقاف 🔊'}
+                                </button>
+
+                                <div className="flex items-center gap-2 flex-1">
+                                    <span className="text-[9px] text-slate-400">الصوت:</span>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="1" 
+                                        step="0.05" 
+                                        value={ambientVolume} 
+                                        onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                                        className="w-full accent-teal-400 bg-white/10 rounded-lg cursor-pointer h-1"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* اليسار: الساعة الرقمية الذكية وأزرار التحكم بالخلفية والمظهر */}
+                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto justify-end">
+                            
+                            {/* صف الأزرار الذكية المحدثة */}
+                            <div className="flex flex-wrap gap-2 justify-center">
+                                
+                                {/* زر تغيير الخلفية الطبيعية الجاهزة */}
+                                <button 
+                                    onClick={handleBackgroundSwitch}
+                                    className="px-3.5 py-2 rounded-xl text-xs font-black transition-all border border-teal-500/30 bg-teal-500/10 text-teal-300 hover:bg-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.15)] flex items-center gap-1"
+                                    title="تغيير الخلفية واختيار مشهد آخر من جبال سويسرا"
+                                >
+                                    🏔️ خلفية طبيعية
+                                </button>
+
+                                {/* زر رفع خلفية خاصة مخصصة من الجهاز */}
+                                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-[0_0_10px_rgba(255,255,255,0.02)]">
+                                    📁 خلفية خاصة
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handleCustomBgUpload} 
+                                        className="hidden" 
+                                    />
+                                </label>
+
+                                {/* زر تفعيل وضع التأمل والتركيز */}
+                                <button 
+                                    onClick={() => setDimPanels(!dimPanels)}
+                                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all border ${
+                                        dimPanels 
+                                        ? 'bg-amber-500/20 border-amber-500 text-amber-300' 
+                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                    }`}
+                                >
+                                    {dimPanels ? '👁 وضع التأمل نشط' : '👁 وضع التأمل'}
+                                </button>
+                            </div>
+
+                            {/* الساعة والتاريخ الحى */}
+                            <div className="text-center sm:text-left font-mono border-t sm:border-t-0 sm:border-r border-white/15 pt-2 sm:pt-0 sm:pr-4">
+                                <div className="text-2xl font-black tracking-wider text-white mono">
+                                    {liveTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                                </div>
+                                <div className="text-[9px] uppercase font-bold text-slate-400 tracking-wider text-center sm:text-left mt-0.5">
+                                    {liveTime.toLocaleDateString('ar-EG', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* المكونات الرئيسية التي تبهت في وضع التأمل لمشاهدة الطبيعة السويسرية */}
+                    <div className={`transition-all duration-700 ${dimPanels ? 'opacity-10 pointer-events-none scale-95 blur-md' : 'opacity-100 scale-100'}`}>
+                        
+                        {/* --- لوحة القياس السريعة بالأعلى --- */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex justify-between items-center shadow-lg hover:border-emerald-500/20 transition duration-300">
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">المهام المكتملة</p>
+                                    <h3 className="text-3xl font-black text-emerald-400 tracking-tight">{completedTasks}</h3>
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">✓</div>
+                            </div>
+
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex justify-between items-center shadow-lg hover:border-amber-500/20 transition duration-300">
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">قيد الانتظار</p>
+                                    <h3 className="text-3xl font-black text-amber-400 tracking-tight">{pendingTasks}</h3>
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/20">⌛</div>
+                            </div>
+
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex justify-between items-center shadow-lg hover:border-teal-500/20 transition duration-300">
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">إجمالي المهام</p>
+                                    <h3 className="text-3xl font-black text-white tracking-tight">{totalTasks}</h3>
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">🗂</div>
+                            </div>
+
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex justify-between items-center shadow-lg hover:border-blue-500/20 transition duration-300">
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">معدل الإنجاز</p>
+                                    <h3 className="text-3xl font-black text-teal-400 tracking-tight">{completionRate}%</h3>
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/20">📈</div>
+                            </div>
+
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex justify-between items-center shadow-lg hover:border-cyan-500/20 transition duration-300">
+                                <div>
+                                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-1">وقت التركيز</p>
+                                    <h3 className="text-2xl font-black text-cyan-400 tracking-tight mono">{totalFocusHours}h {totalFocusMinutes}m</h3>
+                                </div>
+                                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20">⏱</div>
+                            </div>
+                        </div>
+
+                        {/* --- اللوحات البيانية ونسب المهام والتصنيفات --- */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            
+                            {/* المهام حسب التصنيفات */}
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-teal-500/20 transition duration-300">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span> المهام حسب التصنيفات
+                                    </h2>
+                                </div>
+                                <div className="space-y-4">
+                                    {categories.map((cat, idx) => {
+                                        const catTasks = tasks.filter(t => t.category === cat).length;
+                                        const percentage = totalTasks > 0 ? Math.round((catTasks / totalTasks) * 100) : 0;
+                                        return (
+                                            <div key={idx} className="space-y-1">
+                                                <div className="flex justify-between text-xs font-semibold text-slate-300">
+                                                    <span>{cat}</span>
+                                                    <span className="mono">{catTasks}</span>
+                                                </div>
+                                                <div className="w-full bg-white/[0.03] rounded-full h-2 overflow-hidden border border-white/5">
+                                                    <div 
+                                                        className="bg-gradient-to-r from-teal-400 to-indigo-500 h-full rounded-full transition-all duration-500" 
+                                                        style={{ width: `${percentage}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* تصنيف نسب المهام المسجلة */}
+                            <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-indigo-500/20 transition duration-300">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> تصنيف نسب المهام المسجلة
+                                    </h2>
+                                </div>
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                                    <div className="space-y-3 flex-1 w-full">
+                                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                                <span>مكتملة</span>
+                                            </div>
+                                            <span className="mono">{completedTasks}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                                                <span>قيد المتابعة</span>
+                                            </div>
+                                            <span className="mono">{activeAndPendingCount}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>
+                                                <span>غير منجزة / ملغاة</span>
+                                            </div>
+                                            <span className="mono">{cancelledTasks}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" r="40" stroke="rgba(255,255,255,0.03)" strokeWidth="10" fill="transparent" />
+                                            <circle 
+                                                cx="50" cy="50" r="40" 
+                                                stroke="#10b981" strokeWidth="10" fill="transparent" 
+                                                strokeDasharray="251.2" 
+                                                strokeDashoffset={251.2 - (251.2 * (totalTasks > 0 ? completedTasks / totalTasks : 0))}
+                                                strokeLinecap="round"
+                                                className="transition-all duration-700 ease-out"
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-lg font-black text-white">{completionRate}%</span>
+                                            <span className="text-[8px] text-slate-400 uppercase tracking-widest">إنجاز</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* --- الهيت ماب لعام كامل (يوليو 2026 حتي يوليو 2027) --- */}
+                        <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 mb-6 shadow-xl hover:border-white/20 transition duration-300">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2">
+                                    <span>📅</span> خارطة النشاط للأسبوع الحالي (يوليو 2026 - يوليو 2027)
+                                </h2>
+                                <span className="text-[10px] text-slate-500 font-bold mono">2026-2027 Grid</span>
+                            </div>
+                            <div className="overflow-x-auto pb-2">
+                                <div className="min-w-[760px]" dir="ltr">
+                                    <div className="flex pl-8 text-[10px] text-slate-500 select-none justify-between pr-4 mb-2 font-mono">
+                                        <span>Jun 2026</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan 2027</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul 2027</span>
+                                    </div>
+                                    <div className="flex gap-[3.5px]">
+                                        <div className="flex flex-col justify-between text-[9px] text-slate-500 pr-2 w-8 select-none text-right h-[98px]">
+                                            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                                        </div>
+                                        {heatmapGrid.map((week, wIdx) => (
+                                            <div key={wIdx} className="flex flex-col gap-[3.5px]">
+                                                {week.map((day, dIdx) => (
+                                                    <div 
+                                                        key={dIdx}
+                                                        className={`w-[11px] h-[11px] rounded-[2.5px] transition-all duration-300 hover:scale-125 cursor-pointer ${getHeatmapColor(day.dateStr)}`}
+                                                        title={`${day.dateStr} : ${tasks.filter(t => t.date === day.dateStr && t.status === 'Completed').length} مهام منجزة`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex justify-end items-center gap-1.5 mt-4 text-[10px] text-slate-500 select-none" dir="ltr">
+                                <span>Less</span>
+                                <div className="w-2.5 h-2.5 rounded-[2px] bg-white/[0.04]" />
+                                <div className="w-2.5 h-2.5 rounded-[2px] bg-teal-900/40 border border-teal-500/20" />
+                                <div className="w-2.5 h-2.5 rounded-[2px] bg-teal-700/60 border border-teal-400/30" />
+                                <div className="w-2.5 h-2.5 rounded-[2px] bg-teal-500/70 border border-teal-300/40" />
+                                <div className="w-2.5 h-2.5 rounded-[2px] bg-teal-400 border border-emerald-200" />
+                                <span>More</span>
+                            </div>
+                        </div>
+
+                        {/* --- بيئة العمل المقسمة (يمين: جدول المهام والـ Analytics، يسار: متعقب العادات والأدوات) --- */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            
+                            {/* القسم الأيمن (col-span-8): جدول المهام + الـ ANALYTICS PANEL الفخم */}
+                            <div className="lg:col-span-8 space-y-6">
+                                
+                                {/* --- لوحة الـ ANALYTICS PANEL المحدثة بألوان متناسقة ومضيئة (Image 2 Redesigned) --- */}
+                                <div className="bg-slate-900/35 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-[0_0_30px_rgba(20,184,166,0.05)] transition duration-300">
+                                    <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2">
+                                        <span className="text-teal-400 text-lg">⚙️</span>
+                                        <h2 className="text-xs uppercase font-mono font-bold tracking-widest text-slate-200">ANALYTICS PANEL</h2>
+                                    </div>
+
+                                    {/* بطاقات المؤشرات الأساسية بألوان وخطوط فخمة */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                                        <div className="bg-slate-950/45 border border-white/5 p-3 rounded-xl hover:border-teal-500/20 transition">
+                                            <p className="text-[8px] uppercase tracking-wider text-slate-400 mb-1 font-mono">TOTAL TASKS</p>
+                                            <h4 className="text-2xl font-black text-teal-400 mono">{totalTasks}</h4>
+                                        </div>
+                                        <div className="bg-slate-950/45 border border-white/5 p-3 rounded-xl hover:border-emerald-500/20 transition">
+                                            <p className="text-[8px] uppercase tracking-wider text-slate-400 mb-1 font-mono text-emerald-400">COMPLETED</p>
+                                            <h4 className="text-2xl font-black text-emerald-400 mono">{completedTasks}</h4>
+                                        </div>
+                                        <div className="bg-slate-950/45 border border-white/5 p-3 rounded-xl hover:border-amber-500/20 transition">
+                                            <p className="text-[8px] uppercase tracking-wider text-slate-400 mb-1 font-mono text-amber-400">PENDING</p>
+                                            <h4 className="text-2xl font-black text-amber-400 mono">{activeAndPendingCount}</h4>
+                                        </div>
+                                        <div className="bg-slate-950/45 border border-white/5 p-3 rounded-xl hover:border-rose-500/20 transition">
+                                            <p className="text-[8px] uppercase tracking-wider text-slate-400 mb-1 font-mono text-rose-400">CANCELLED</p>
+                                            <h4 className="text-2xl font-black text-rose-400 mono">{cancelledTasks}</h4>
+                                        </div>
+                                        <div className="bg-slate-950/45 border border-white/5 p-3 rounded-xl hover:border-cyan-500/20 transition">
+                                            <p className="text-[8px] uppercase tracking-wider text-slate-400 mb-1 font-mono text-cyan-400">EST. TIME</p>
+                                            <h4 className="text-2xl font-black text-cyan-400 mono">{totalEstTimeHours}h</h4>
+                                        </div>
+                                        <div className="bg-slate-950/45 border border-white/5 p-3 rounded-xl hover:border-indigo-500/20 transition">
+                                            <p className="text-[8px] uppercase tracking-wider text-slate-400 mb-1 font-mono text-indigo-400">ACTUAL TIME</p>
+                                            <h4 className="text-2xl font-black text-indigo-400 mono">{totalActualHoursFloat}h</h4>
+                                        </div>
+                                    </div>
+
+                                    {/* تفاصيل التحليل بالأسفل بتوزيع منظم وأشرطة ملونة */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        
+                                        {/* دقة استهلاك الوقت */}
+                                        <div className="space-y-4 bg-slate-950/35 p-4 rounded-2xl border border-white/5">
+                                            <h5 className="text-[9px] uppercase tracking-wider text-slate-400 font-mono font-bold">TIME ANALYSIS</h5>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5">
+                                                    <span className="text-slate-300 font-medium">Avg. Daily Hours</span>
+                                                    <span className="mono font-bold text-white">{avgDailyHours}h</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5">
+                                                    <span className="text-slate-300 font-medium">Avg. Task Duration</span>
+                                                    <span className="mono font-bold text-white">{avgTaskDurationMin} min</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="text-slate-300 font-medium">Est. vs Actual Diff</span>
+                                                    <span className="mono font-bold text-white">{estVsActualDiffMin} min</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* المهام المنتهية حسب الفئة */}
+                                        <div className="space-y-3 bg-slate-950/35 p-4 rounded-2xl border border-white/5">
+                                            <h5 className="text-[9px] uppercase tracking-wider text-slate-400 font-mono font-bold">COMPLETED TASKS BY CATEGORY</h5>
+                                            <div className="space-y-2.5">
+                                                {categories.slice(0, 4).map((cat, i) => {
+                                                    const total = tasks.filter(t => t.category === cat).length;
+                                                    const completed = tasks.filter(t => t.category === cat && t.status === "Completed").length;
+                                                    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+                                                    return (
+                                                        <div key={i} className="text-xs">
+                                                            <div className="flex justify-between text-[10px] text-slate-400 font-mono mb-1">
+                                                                <span>{cat}</span>
+                                                                <span>{completed}/{total} ({percentage}%)</span>
+                                                            </div>
+                                                            <div className="w-full bg-white/[0.03] rounded-full h-1 overflow-hidden">
+                                                                <div className="bg-gradient-to-r from-teal-400 to-cyan-500 h-full rounded-full transition-all duration-300" style={{ width: `${percentage}%` }} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* الساعات الكلية لكل فئة */}
+                                        <div className="space-y-3 bg-slate-950/35 p-4 rounded-2xl border border-white/5">
+                                            <h5 className="text-[9px] uppercase tracking-wider text-slate-400 font-mono font-bold">HOURS BY CATEGORY</h5>
+                                            <div className="space-y-2.5">
+                                                {categories.slice(0, 4).map((cat, i) => {
+                                                    const catSeconds = tasks.filter(t => t.category === cat).reduce((sum, t) => sum + (t.actualTime || 0), 0);
+                                                    const catHours = (catSeconds / 3600).toFixed(1);
+                                                    const percentage = totalFocusSeconds > 0 ? Math.round((catSeconds / totalFocusSeconds) * 100) : 0;
+                                                    return (
+                                                        <div key={i} className="text-xs">
+                                                            <div className="flex justify-between text-[10px] text-slate-400 font-mono mb-1">
+                                                                <span>{cat}</span>
+                                                                <span>{catHours} hrs ({percentage}%)</span>
+                                                            </div>
+                                                            <div className="w-full bg-white/[0.03] rounded-full h-1 overflow-hidden">
+                                                                <div className="bg-gradient-to-r from-indigo-500 to-teal-400 h-full rounded-full transition-all duration-300" style={{ width: `${percentage}%` }} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                {/* جدول المهام المسجلة الفعلي */}
+                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
+                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                                        <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2">
+                                            <span>📋</span> جدول المهام المسجلة
+                                        </h2>
+                                        
+                                        <div className="flex gap-2 flex-wrap">
+                                            <button onClick={handleExportData} className="bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold px-3 py-1.5 rounded-xl transition">تصدير JSON</button>
+                                            <label className="bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer">
+                                                استيراد JSON
+                                                <input type="file" onChange={handleImportData} className="hidden" accept=".json" />
+                                            </label>
+                                            <button onClick={() => confirm('هل تود إعادة تعيين كافة المهام؟') && setTasks([])} className="bg-rose-950/40 text-rose-400 border border-rose-500/25 hover:bg-rose-900/40 text-[10px] font-bold px-3 py-1.5 rounded-xl transition">مسح الكل</button>
+                                        </div>
+                                    </div>
+
+                                    {/* الفلاتر والبحث */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 mb-6 bg-slate-950/45 p-3 rounded-2xl border border-white/5">
+                                        <input 
+                                            type="text"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder="البحث بالاسم..."
+                                            className="w-full bg-white/5 border border-white/5 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none"
+                                        />
+                                        <select value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-slate-900 border border-white/5 rounded-xl px-2 py-2 text-xs text-slate-300 focus:outline-none cursor-pointer">
+                                            <option value="All">كل التواريخ</option>
+                                            <option value="Today">اليوم ({getArabicDateLabel(liveTime)})</option>
+                                            <option value="Yesterday">أمس ({getArabicDateLabel(yesterdayDate)})</option>
+                                        </select>
+                                        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="bg-slate-900 border border-white/5 rounded-xl px-2 py-2 text-xs text-slate-300 focus:outline-none cursor-pointer">
+                                            <option value="All Categories">كل التصنيفات</option>
+                                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-slate-900 border border-white/5 rounded-xl px-2 py-2 text-xs text-slate-300 focus:outline-none cursor-pointer">
+                                            <option value="All Statuses">كل الحالات</option>
+                                            <option value="Pending">قيد الانتظار</option>
+                                            <option value="In Progress">جاري العمل</option>
+                                            <option value="Completed">منتهية مكتملة</option>
+                                            <option value="Cancelled">ملغاة/غير منجزة</option>
+                                        </select>
+                                        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-slate-900 border border-white/5 rounded-xl px-2 py-2 text-xs text-slate-300 focus:outline-none cursor-pointer">
+                                            <option value="Newest First">الأحدث أولاً</option>
+                                            <option value="Oldest First">الأقدم أولاً</option>
+                                            <option value="Priority High-Low">الأولية من الأعلى</option>
+                                            <option value="Est. Time High-Low">الأطول مدة أولاً</option>
+                                        </select>
+                                    </div>
+
+                                    {/* جدول عرض البيانات المتجاوب */}
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-right border-collapse min-w-[650px]">
+                                            <thead>
+                                                <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                                    <th className="pb-3 pr-2">تفاصيل المهمة</th>
+                                                    <th className="pb-3">التصنيف</th>
+                                                    <th className="pb-3">التقديري</th>
+                                                    <th className="pb-3">المنقضي</th>
+                                                    <th className="pb-3">الأولوية</th>
+                                                    <th className="pb-3">الحالة</th>
+                                                    <th className="pb-3 text-left pl-2">التحكم</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-white/5">
+                                                {filteredTasks.map(task => {
+                                                    const isActive = activeTaskId === task.id;
+                                                    const isCompleted = task.status === 'Completed';
+                                                    const isCancelled = task.status === 'Cancelled';
+                                                    
+                                                    let rowStyle = "text-xs hover:bg-white/[0.02] transition-all ";
+                                                    if (isCompleted) {
+                                                        rowStyle += "opacity-45 line-through bg-emerald-950/15 border-emerald-500/10 text-slate-400";
+                                                    } else if (isCancelled) {
+                                                        rowStyle += "bg-rose-950/20 border-rose-500/15 text-rose-300";
+                                                    }
+
+                                                    return (
+                                                        <tr key={task.id} className={rowStyle}>
+                                                            <td className="py-3.5 pr-2">
+                                                                <div className="font-bold">{task.title}</div>
+                                                                <div className="text-[9px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                                                    <span>📅 {task.date}</span>
+                                                                    {task.notes && <span>• {task.notes}</span>}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                <span className="px-2.5 py-0.5 rounded text-[9px] font-bold tracking-wider bg-indigo-950/40 text-indigo-300 border border-indigo-500/15">{task.category}</span>
+                                                            </td>
+                                                            <td className="mono text-slate-400 font-semibold">{task.estTime}m</td>
+                                                            <td>
+                                                                <span className={`mono font-bold ${isActive ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`}>
+                                                                    {formatTime(task.actualTime || 0)}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-wider ${
+                                                                    task.priority === 'High' ? 'bg-rose-950/40 text-rose-400 border border-rose-500/15' : 'bg-slate-800 text-slate-400'
+                                                                }`}>{task.priority === 'High' ? 'عالية' : 'عادية'}</span>
+                                                            </td>
+                                                            <td>
+                                                                <select 
+                                                                    value={task.status}
+                                                                    onChange={(e) => {
+                                                                        setTasks(tasks.map(t => t.id === task.id ? { ...t, status: e.target.value } : t));
+                                                                        if (e.target.value !== 'In Progress' && activeTaskId === task.id) setActiveTaskId(null);
+                                                                    }}
+                                                                    className="bg-[#0c0d10] text-[10px] text-slate-300 font-semibold rounded border border-white/10 px-1 py-0.5 focus:outline-none cursor-pointer"
+                                                                >
+                                                                    <option value="Pending">قيد الانتظار</option>
+                                                                    <option value="In Progress">جاري العمل</option>
+                                                                    <option value="Completed">منتهية مكتملة</option>
+                                                                    <option value="Cancelled">ملغاة/غير منجزة</option>
+                                                                </select>
+                                                            </td>
+                                                            <td className="text-left pl-2">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    {!isCompleted && !isCancelled && (
+                                                                        <button 
+                                                                            onClick={() => toggleTimer(task.id)} 
+                                                                            className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${isActive ? 'bg-amber-500 text-slate-950 font-black' : 'bg-white text-slate-950'}`}
+                                                                        >
+                                                                            {isActive ? '⏸ مؤقتاً' : '▶ بدء التركيز'}
+                                                                        </button>
+                                                                    )}
+                                                                    <button onClick={() => setEditingTask({ ...task })} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300">📝</button>
+                                                                    <button onClick={() => handleDuplicateTask(task)} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300">📁</button>
+                                                                    <button onClick={() => handleDeleteTask(task.id)} className="p-1 rounded bg-white/5 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400">✕</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            {/* القسم الأيسر (col-span-4): متعقب العادات اليومية (إصلاح الأيام السبعة بالكامل) والأدوات */}
+                            <div className="lg:col-span-4 space-y-6">
+                                
+                                {/* متعقب العادات اليومية المصلح بالكامل (Image 1 Fixed) */}
+                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-white/20 transition duration-300">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xs uppercase font-bold text-white flex items-center gap-2">
+                                            <span className="text-teal-400 text-lg">⚡</span> متعقب العادات اليومية
+                                        </h2>
+                                        
+                                        <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-1 rounded-xl border border-white/5">
+                                            <span className="text-[8px] text-slate-400">البداية:</span>
+                                            {/* هنا تم تعديل القائمة لتشمل كافة أيام الأسبوع السبعة بشكل متكامل */}
+                                            <select 
+                                                value={startOfWeek} 
+                                                onChange={(e) => setStartOfWeek(e.target.value)}
+                                                className="bg-transparent text-[8px] text-teal-400 font-bold focus:outline-none cursor-pointer"
+                                            >
+                                                <option value="Saturday" className="bg-slate-950 text-white">السبت</option>
+                                                <option value="Sunday" className="bg-slate-950 text-white">الأحد</option>
+                                                <option value="Monday" className="bg-slate-950 text-white">الاثنين</option>
+                                                <option value="Tuesday" className="bg-slate-950 text-white">الثلاثاء</option>
+                                                <option value="Wednesday" className="bg-slate-950 text-white">الأربعاء</option>
+                                                <option value="Thursday" className="bg-slate-950 text-white">الخميس</option>
+                                                <option value="Friday" className="bg-slate-950 text-white">الجمعة</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {habits.map(h => {
+                                            const { completedCount, percentage } = calculateHabitPercentageForWeek(h.completedDates, weekDays);
+                                            return (
+                                                <div key={h.id} className="bg-slate-950/40 border border-white/5 rounded-2xl p-4 relative hover:border-white/10 transition">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <h4 className="text-xs font-bold text-slate-200">{h.name}</h4>
+                                                            <p className="text-[9px] text-slate-400 mt-0.5">
+                                                                {completedCount} من أصل 7 أيام متتالية ({percentage}%)
+                                                            </p>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => handleDeleteHabit(h.id)}
+                                                            className="text-[9px] text-rose-400 font-semibold hover:underline"
+                                                        >
+                                                            حذف
+                                                        </button>
+                                                    </div>
+
+                                                    {/* شبكة الأيام السبعة المصلحة للتوافق السلس والكامل للمظهر */}
+                                                    <div className="grid grid-cols-7 gap-1 mt-3 w-full">
+                                                        {weekDays.map((day, dIdx) => {
+                                                            const isDone = h.completedDates && h.completedDates.includes(day.fullDate);
+                                                            return (
+                                                                <button
+                                                                    key={dIdx}
+                                                                    onClick={() => toggleHabitDay(h.id, day.fullDate)}
+                                                                    className={`flex flex-col items-center justify-center p-1 rounded-xl transition-all min-w-0 h-12 border ${
+                                                                        isDone 
+                                                                        ? 'bg-gradient-to-b from-teal-400 to-cyan-500 text-slate-950 shadow-[0_0_12px_rgba(20,184,166,0.45)] scale-105 border-transparent font-black' 
+                                                                        : 'bg-slate-900/60 text-slate-400 border border-white/5 hover:border-white/20'
+                                                                    }`}
+                                                                    title={`${day.nameShort} - ${day.fullDate}`}
+                                                                >
+                                                                    <span className="text-[8px] font-bold block truncate w-full text-center">{day.nameShort}</span>
+                                                                    <span className="text-[11px] font-black block mt-0.5">{day.dayNum}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <form onSubmit={handleAddHabit} className="flex gap-2 mt-4">
+                                        <input 
+                                            type="text"
+                                            required
+                                            value={newHabitName}
+                                            onChange={(e) => setNewHabitName(e.target.value)}
+                                            placeholder="إضافة عادة جديدة..."
+                                            className="flex-1 bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                        />
+                                        <button 
+                                            type="submit"
+                                            className="w-8 h-8 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-bold text-sm hover:bg-teal-400 transition"
+                                        >
+                                            +
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {/* الامتنان والمزاج اليومي */}
+                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl hover:border-white/20 transition duration-300">
+                                    <h2 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
+                                        <span className="text-teal-400 text-lg">🌿</span> مساحة الهدوء والامتنان
+                                    </h2>
+
+                                    <div className="mb-4">
+                                        <p className="text-[10px] uppercase font-bold text-slate-300 mb-2">كيف تصف مزاجك الحالي؟</p>
+                                        <div className="flex justify-between gap-1 bg-slate-950/40 p-2 rounded-2xl border border-white/5">
+                                            {['😊', '😐', '😔', '⚡', '🍃'].map((emoji) => (
+                                                <button
+                                                    key={emoji}
+                                                    onClick={() => setCurrentMood(emoji)}
+                                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg transition-all ${
+                                                        currentMood === emoji 
+                                                        ? 'bg-gradient-to-tr from-teal-500/20 to-indigo-500/20 border border-teal-500 shadow-[0_0_12px_rgba(20,184,166,0.35)] scale-110' 
+                                                        : 'hover:bg-white/5'
+                                                    }`}
+                                                >
+                                                    {emoji}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold text-slate-300 block mb-1">شيء تود شكر الله والامتنان لوجوده اليوم:</label>
+                                        <textarea
+                                            value={gratitudeText}
+                                            onChange={(e) => setGratitudeText(e.target.value)}
+                                            placeholder="كوب قهوة، تقدم بسيط بالبرمجة، يوم هادئ..."
+                                            className="w-full bg-slate-950/60 border border-white/10 rounded-xl p-3 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition min-h-[90px] resize-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* إضافة مهمة تركيز جديدة */}
+                                <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
+                                    <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2 mb-4">
+                                        <span>📝</span> إضافة مهمة تركيز جديدة
+                                    </h2>
+
+                                    <form onSubmit={handleAddTask} className="space-y-3.5">
+                                        <div>
+                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">اسم المهمة</label>
+                                            <input 
+                                                type="text"
+                                                required
+                                                value={formTitle}
+                                                onChange={(e) => setFormTitle(e.target.value)}
+                                                placeholder="مثلاً: مراجعة الكود، حل ثغرات الأمان..."
+                                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">ملاحظات إضافية</label>
+                                            <input 
+                                                type="text"
+                                                value={formNotes}
+                                                onChange={(e) => setFormNotes(e.target.value)}
+                                                placeholder="أهداف فرعية للمهمة..."
+                                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <label className="text-[9px] uppercase font-bold text-slate-400">التصنيف</label>
+                                                    <button type="button" onClick={() => setShowCategoryModal(true)} className="text-[8px] text-teal-400 font-semibold hover:underline">تعديل</button>
+                                                </div>
+                                                <select 
+                                                    value={formCategory}
+                                                    onChange={(e) => setFormCategory(e.target.value)}
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
+                                                >
+                                                    {categories.map(c => <option key={c} value={c} className="bg-slate-900">{c}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الوقت التقديري (دقيقة)</label>
+                                                <input 
+                                                    type="number"
+                                                    value={formEstTime}
+                                                    onChange={(e) => setFormEstTime(e.target.value)}
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الأولية</label>
+                                                <select 
+                                                    value={formPriority}
+                                                    onChange={(e) => setFormPriority(e.target.value)}
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
+                                                >
+                                                    <option value="Low" className="bg-slate-900">منخفضة</option>
+                                                    <option value="Medium" className="bg-slate-900">متوسطة</option>
+                                                    <option value="High" className="bg-slate-900">عالية 🔥</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">التاريخ</label>
+                                                <input 
+                                                    type="date"
+                                                    value={formDate}
+                                                    onChange={(e) => setFormDate(e.target.value)}
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="submit"
+                                            className="w-full bg-gradient-to-r from-teal-500 to-indigo-500 hover:from-teal-400 hover:to-indigo-400 text-slate-950 font-bold py-2.5 rounded-xl transition text-xs flex items-center justify-center gap-1 shadow-md"
+                                        >
+                                            + إضافة المهمة
+                                        </button>
+                                    </form>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    {/* --- نافذة تعديل وإضافة التصنيفات --- */}
+                    {showCategoryModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+                            <div className="bg-slate-950/95 border border-white/15 rounded-3xl w-full max-w-sm p-6 relative animate-fadeIn">
+                                <button onClick={() => setShowCategoryModal(false)} className="absolute top-4 left-4 text-slate-400 hover:text-slate-100">✕</button>
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-white mb-4">إدارة وتعديل التصنيفات</h3>
+                                <div className="flex gap-2 mb-4">
+                                    <input 
+                                        type="text"
+                                        value={newCategoryName}
+                                        onChange={(e) => setNewCategoryName(e.target.value)}
+                                        placeholder="تصنيف جديد..."
+                                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                                    />
+                                    <button onClick={handleAddCategory} className="bg-teal-500 text-slate-950 hover:bg-teal-400 font-bold px-4 py-2 rounded-xl text-xs">إضافة</button>
+                                </div>
+                                <div className="space-y-1 max-h-40 overflow-y-auto">
+                                    {categories.map(c => (
+                                        <div key={c} className="flex justify-between items-center bg-white/[0.02] p-2 rounded-lg text-xs border border-white/5">
+                                            <span>{c}</span>
+                                            <button onClick={() => handleDeleteCategory(c)} className="text-slate-500 hover:text-rose-400">✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- نافذة تعديل المهام الفردية --- */}
+                    {editingTask && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
+                            <div className="bg-slate-950/95 border border-white/15 rounded-3xl w-full max-w-md p-6 relative">
+                                <button onClick={() => setEditingTask(null)} className="absolute top-4 left-4 text-slate-400 hover:text-slate-100">✕</button>
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-white mb-4">تعديل بيانات المهمة</h3>
+                                <div className="space-y-3.5">
+                                    <div>
+                                        <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">اسم المهمة</label>
+                                        <input type="text" value={editingTask.title} onChange={e => setEditingTask({ ...editingTask, title: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">ملاحظات</label>
+                                        <input type="text" value={editingTask.notes} onChange={e => setEditingTask({ ...editingTask, notes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">التصنيف</label>
+                                            <select value={editingTask.category} onChange={e => setEditingTask({ ...editingTask, category: e.target.value })} className="w-full bg-slate-900 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none">
+                                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">الأولوية</label>
+                                            <select value={editingTask.priority} onChange={e => setEditingTask({ ...editingTask, priority: e.target.value })} className="w-full bg-slate-900 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none">
+                                                <option value="Low">Low</option>
+                                                <option value="Medium">Medium</option>
+                                                <option value="High">High</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-end gap-2 pt-2">
+                                        <button onClick={() => setEditingTask(null)} className="bg-slate-800 text-slate-300 font-bold px-3 py-2 rounded-xl text-xs">إلغاء</button>
+                                        <button onClick={handleSaveEdit} className="bg-white text-slate-950 hover:bg-slate-200 font-bold px-4 py-2 rounded-xl text-xs">حفظ التعديلات</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- حكمة الختام اليومية --- */}
+                    <footer className="mt-8 text-center bg-slate-950/30 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                        <p className="text-[10px] text-teal-400 font-bold uppercase tracking-wider mb-1.5">💡 الحكمة اليومية المُلهمة</p>
+                        <p className="text-xs text-slate-200 italic font-medium leading-relaxed">
+                            "{getDailyWisdom()}"
+                        </p>
+                    </footer>
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+```
