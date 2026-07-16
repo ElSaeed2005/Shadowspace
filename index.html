@@ -179,21 +179,52 @@
             });
         };
 
-        // مصلح روابط اليوتيوب التلقائي لتضمينها بذكاء داخل الـ IFrames
+        // دالة للتحقق مما إذا كان الملف رابط فيديو مباشر
+        const isDirectVideo = (url) => {
+            if (!url) return false;
+            return url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i);
+        };
+
+        // مصلح روابط اليوتيوب والفيديو التلقائي لتضمينها بذكاء داخل الـ IFrames
         const formatEmbedUrl = (url) => {
             if (!url) return '';
             let videoId = '';
-            if (url.includes('youtube.com/embed/')) {
-                return url;
-            }
+            
+            // YouTube
+            if (url.includes('youtube.com/embed/')) return url;
             if (url.includes('youtube.com/watch?v=')) {
-                videoId = url.split('v=')[1].split('&')[0];
-                return `https://www.youtube.com/embed/${videoId}`;
+                const parts = url.split('v=');
+                if (parts[1]) {
+                    videoId = parts[1].split('&')[0];
+                    return `https://www.youtube.com/embed/${videoId}`;
+                }
             }
             if (url.includes('youtu.be/')) {
-                videoId = url.split('youtu.be/')[1].split('?')[0];
-                return `https://www.youtube.com/embed/${videoId}`;
+                const parts = url.split('youtu.be/');
+                if (parts[1]) {
+                    videoId = parts[1].split('?')[0];
+                    return `https://www.youtube.com/embed/${videoId}`;
+                }
             }
+            
+            // Vimeo
+            if (url.includes('vimeo.com/')) {
+                const parts = url.split('/');
+                const id = parts[parts.length - 1].split('?')[0];
+                if (/^\d+$/.test(id)) {
+                    return `https://player.vimeo.com/video/${id}`;
+                }
+            }
+            
+            // Dailymotion
+            if (url.includes('dailymotion.com/video/')) {
+                const parts = url.split('/video/');
+                if (parts[1]) {
+                    const id = parts[1].split('?')[0];
+                    return `https://www.dailymotion.com/embed/video/${id}`;
+                }
+            }
+            
             return url;
         };
 
@@ -396,6 +427,10 @@
 
             const [tasksViewMode, setTasksViewMode] = useState('matrix'); // وضع عرض المهام: 'matrix' لمصفوفة إيزنهاور أو 'table' للجدول الكلاسيكي
             const [studySelectedTaskId, setStudySelectedTaskId] = useState(''); // تتبع فيديو المهمة المحدد في صالون المذاكرة
+
+            // حالة لتشغيل الفيديو المنبثق الفوري للمهمة من أي مكان بالموقع
+            const [activeTaskVideoUrl, setActiveTaskVideoUrl] = useState(null);
+            const [activeTaskVideoTitle, setActiveTaskVideoTitle] = useState('');
 
             // متعقب العادات
             const [startOfWeek, setStartOfWeek] = useState(() => localStorage.getItem('shadow_startofweek_v4') || 'Saturday');
@@ -1196,10 +1231,23 @@
                                         >
                                             <div className="flex justify-between items-start gap-2">
                                                 <div>
-                                                    <div className="font-bold text-xs text-white line-clamp-1">{task.title}</div>
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <div className="font-bold text-xs text-white line-clamp-1">{task.title}</div>
+                                                        {task.videoUrl && (
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setActiveTaskVideoUrl(task.videoUrl);
+                                                                    setActiveTaskVideoTitle(task.title);
+                                                                }}
+                                                                className="text-cyan-400 hover:text-cyan-300 transition-all p-0.5 bg-cyan-500/10 rounded border border-cyan-500/20 text-[9px] flex items-center justify-center font-bold"
+                                                                title="مشاهدة فيديو الشرح"
+                                                            >
+                                                                📺
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     <div className="text-[8px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                                                         <span>📅 {task.date}</span>
-                                                        {task.videoUrl && <span className="text-cyan-400 font-bold">📺 شرح مرئي</span>}
                                                     </div>
                                                 </div>
                                                 <span className="text-[8px] px-1.5 py-0.5 rounded bg-indigo-950/40 text-indigo-300 border border-indigo-500/15">
@@ -1888,11 +1936,24 @@
                                                                 return (
                                                                     <tr key={task.id} className={rowStyle}>
                                                                         <td className="py-3.5 pr-2">
-                                                                            <div className="font-bold">{task.title}</div>
+                                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                                <span className="font-bold">{task.title}</span>
+                                                                                {task.videoUrl && (
+                                                                                    <button 
+                                                                                        onClick={() => {
+                                                                                            setActiveTaskVideoUrl(task.videoUrl);
+                                                                                            setActiveTaskVideoTitle(task.title);
+                                                                                        }}
+                                                                                        className="text-cyan-400 hover:text-cyan-300 hover:scale-105 transition p-1 bg-cyan-500/10 rounded border border-cyan-500/25 flex items-center justify-center text-[9px] font-black"
+                                                                                        title="مشاهدة فيديو الشرح"
+                                                                                    >
+                                                                                        📺 شاهد الشرح
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
                                                                             <div className="text-[9px] text-slate-400 flex items-center gap-2 mt-0.5">
                                                                                 <span>📅 {task.date}</span>
                                                                                 {task.notes && <span>• {task.notes}</span>}
-                                                                                {task.videoUrl && <span className="text-cyan-400">📺 فيديو الشرح متاح</span>}
                                                                             </div>
                                                                         </td>
                                                                         <td>
@@ -2458,12 +2519,37 @@
                                 {/* مشغل العرض التفاعلي للمحتوى الترفيهي المختار */}
                                 <div className="lg:col-span-8 bg-slate-900/50 border border-white/10 p-4 rounded-3xl flex flex-col h-[520px]">
                                     {activeLuxuryItemUrl ? (
-                                        <iframe 
-                                            src={activeLuxuryItemUrl} 
-                                            className="w-full h-full rounded-2xl bg-black" 
-                                            allowFullScreen 
-                                            allow="autoplay; encrypted-media"
-                                        />
+                                        <div className="w-full h-full flex flex-col gap-2">
+                                            {/* شريط أدوات مساعد لحل مشكلة عدم إمكانية تضمين المواقع التي تمنع الـ iFrame */}
+                                            <div className="flex justify-between items-center bg-black/45 p-2 rounded-xl border border-white/5 text-xs">
+                                                <span className="text-slate-400 text-[10px]">🌐 مشغل صالون الترفيه المرن</span>
+                                                <a 
+                                                    href={activeLuxuryItemUrl} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="bg-pink-500/20 hover:bg-pink-500/35 border border-pink-500/30 text-pink-300 px-3 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1"
+                                                >
+                                                    فتح في تبويب مستقل ↗ (إذا لم يعرض بالأسفل)
+                                                </a>
+                                            </div>
+                                            
+                                            <div className="flex-1 rounded-2xl overflow-hidden bg-black border border-white/5 relative">
+                                                {isDirectVideo(activeLuxuryItemUrl) ? (
+                                                    <video 
+                                                        src={activeLuxuryItemUrl} 
+                                                        controls 
+                                                        className="w-full h-full bg-black"
+                                                    />
+                                                ) : (
+                                                    <iframe 
+                                                        src={activeLuxuryItemUrl} 
+                                                        className="w-full h-full" 
+                                                        allowFullScreen 
+                                                        allow="autoplay; encrypted-media"
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full text-slate-500">
                                             <span className="text-4xl mb-2">📺</span>
@@ -2555,6 +2641,49 @@
                                         <button onClick={() => setEditingTask(null)} className="bg-slate-800 text-slate-300 font-bold px-3 py-2 rounded-xl text-xs">إلغاء</button>
                                         <button onClick={handleSaveEdit} className="bg-white text-slate-950 hover:bg-slate-200 font-bold px-4 py-2 rounded-xl text-xs">حفظ التعديلات</button>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* --- نافذة عرض فيديو الشرح المنبثقة الفورية (Popup Task Video Modal) --- */}
+                    {activeTaskVideoUrl && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+                            <div className="bg-slate-950/95 border border-white/15 rounded-3xl w-full max-w-3xl p-6 relative">
+                                <button 
+                                    onClick={() => {
+                                        setActiveTaskVideoUrl(null);
+                                        setActiveTaskVideoTitle('');
+                                    }} 
+                                    className="absolute top-4 left-4 text-slate-400 hover:text-slate-100 bg-white/5 w-8 h-8 rounded-full flex items-center justify-center font-bold"
+                                >
+                                    ✕
+                                </button>
+                                <h3 className="text-sm font-black text-white mb-4 flex items-center gap-2">
+                                    <span>📺</span> شرح المهمة: {activeTaskVideoTitle}
+                                </h3>
+                                <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black border border-white/5">
+                                    {isDirectVideo(activeTaskVideoUrl) ? (
+                                        <video src={activeTaskVideoUrl} controls autoPlay className="w-full h-full" />
+                                    ) : (
+                                        <iframe 
+                                            src={activeTaskVideoUrl} 
+                                            className="w-full h-full" 
+                                            allowFullScreen 
+                                            allow="autoplay; encrypted-media"
+                                        />
+                                    )}
+                                </div>
+                                <div className="mt-4 flex justify-between items-center text-xs">
+                                    <span className="text-slate-400">يمكنك مشاهدة الشرح مباشرة بالتزامن مع تتبع المهام اليومية</span>
+                                    <a 
+                                        href={activeTaskVideoUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="bg-pink-500/20 hover:bg-pink-500/35 border border-pink-500/30 text-pink-300 px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                                    >
+                                        فتح الفيديو في تبويب مستقل ↗
+                                    </a>
                                 </div>
                             </div>
                         </div>
