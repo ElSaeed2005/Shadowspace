@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -345,7 +344,9 @@
                         actualTime: 1800,
                         priority: "High",
                         status: "In Progress",
-                        date: formatDateToYMD(new Date())
+                        date: formatDateToYMD(new Date()),
+                        videoUrl: "",
+                        eisenhower: "urgent_important"
                     }
                 ];
             });
@@ -381,6 +382,7 @@
             const gainNodeRef = useRef(null);
             const rainIntervalRef = useRef(null);
             const localAudioRef = useRef(null);
+            const lastTickRef = useRef(Date.now()); // مرجع زمني لحساب الوقت الفعلي بدقة وتجاوز تقييد الخلفية
 
             // حقول النماذج
             const [formTitle, setFormTitle] = useState('');
@@ -389,6 +391,11 @@
             const [formEstTime, setFormEstTime] = useState('45');
             const [formPriority, setFormPriority] = useState('Medium');
             const [formDate, setFormDate] = useState(() => formatDateToYMD(new Date()));
+            const [formVideoUrl, setFormVideoUrl] = useState('');
+            const [formEisenhower, setFormEisenhower] = useState('urgent_important');
+
+            const [tasksViewMode, setTasksViewMode] = useState('matrix'); // وضع عرض المهام: 'matrix' لمصفوفة إيزنهاور أو 'table' للجدول الكلاسيكي
+            const [studySelectedTaskId, setStudySelectedTaskId] = useState(''); // تتبع فيديو المهمة المحدد في صالون المذاكرة
 
             // متعقب العادات
             const [startOfWeek, setStartOfWeek] = useState(() => localStorage.getItem('shadow_startofweek_v4') || 'Saturday');
@@ -577,17 +584,24 @@
                 }
             }, [dimPanels]);
 
-            // عداد الوقت للمهمة النشطة
+            // عداد الوقت للمهمة النشطة (تمت كتابته ليعمل في الخلفية والتبويبات غير النشطة دون توقف وبحساب زمني حقيقي)
             useEffect(() => {
                 let interval = null;
                 if (activeTaskId !== null) {
+                    lastTickRef.current = Date.now(); // تعيين نقطة بداية دقيقة للعداد
                     interval = setInterval(() => {
-                        setTasks(prev => prev.map(t => {
-                            if (t.id === activeTaskId) {
-                                return { ...t, actualTime: (t.actualTime || 0) + 1 };
-                            }
-                            return t;
-                        }));
+                        const now = Date.now();
+                        const elapsedMs = now - lastTickRef.current;
+                        const deltaSeconds = Math.floor(elapsedMs / 1000);
+                        if (deltaSeconds > 0) {
+                            setTasks(prev => prev.map(t => {
+                                if (t.id === activeTaskId) {
+                                    return { ...t, actualTime: (t.actualTime || 0) + deltaSeconds };
+                                }
+                                return t;
+                            }));
+                            lastTickRef.current += deltaSeconds * 1000; // الإبقاء على الفارق الكسري الزمني دون أي ضياع للثواني
+                        }
                     }, 1000);
                 }
                 return () => clearInterval(interval);
@@ -899,7 +913,8 @@
                         categories,
                         habits,
                         currentMood,
-                        gratitudeText
+                        gratitudeText,
+                        luxurySeconds
                     }, null, 2)
                 );
                 const downloadAnchor = document.createElement('a');
@@ -922,6 +937,7 @@
                             if (parsed.habits) setHabits(parsed.habits);
                             if (parsed.currentMood) setCurrentMood(parsed.currentMood);
                             if (parsed.gratitudeText) setGratitudeText(parsed.gratitudeText);
+                            if (parsed.luxurySeconds !== undefined) setLuxurySeconds(parsed.luxurySeconds);
                             alert("تم استيراد البيانات بنجاح!");
                         } catch (err) {
                             alert("خطأ في قراءة ملف JSON أو تنسيقه غير صالح.");
@@ -995,12 +1011,16 @@
                     actualTime: 0,
                     priority: formPriority,
                     status: 'Pending',
-                    date: formDate
+                    date: formDate,
+                    videoUrl: formVideoUrl.trim() ? formatEmbedUrl(formVideoUrl.trim()) : '',
+                    eisenhower: formEisenhower
                 };
                 setTasks([newTask, ...tasks]);
                 setFormTitle('');
                 setFormNotes('');
                 setFormEstTime('45');
+                setFormVideoUrl('');
+                setFormEisenhower('urgent_important');
             };
 
             const toggleTimer = (taskId) => {
@@ -1138,6 +1158,85 @@
                 if (sortBy === 'Est. Time High-Low') return b.estTime - a.estTime;
                 return 0;
             });
+
+            // دالة رندر أرباع مصفوفة إيزنهاور لتفادي التكرار وسهولة المعالجة
+            const renderEisenhowerQuadrant = (quadrantKey, title, bgColor, borderCol, textCol) => {
+                const quadrantTasks = filteredTasks.filter(t => {
+                    const q = t.eisenhower || (t.priority === 'High' ? 'urgent_important' : 'important_not_urgent');
+                    return q === quadrantKey;
+                });
+
+                return (
+                    <div className={`backdrop-blur-md border ${borderCol} ${bgColor} rounded-2xl p-4 flex flex-col h-[300px] transition-all`}>
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-white/5">
+                            <h3 className={`text-xs font-black ${textCol} flex items-center gap-1.5`}>
+                                {title}
+                            </h3>
+                            <span className="bg-white/5 px-2 py-0.5 rounded-full text-[9px] font-bold text-slate-400 mono">
+                                {quadrantTasks.length}
+                            </span>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                            {quadrantTasks.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-[10px] text-slate-500 italic">
+                                    لا توجد مهام حالية في هذا الربع
+                                </div>
+                            ) : (
+                                quadrantTasks.map(task => {
+                                    const isActive = activeTaskId === task.id;
+                                    const isCompleted = task.status === 'Completed';
+                                    const isCancelled = task.status === 'Cancelled';
+                                    return (
+                                        <div 
+                                            key={task.id} 
+                                            className={`p-2.5 rounded-xl border border-white/5 bg-slate-950/50 flex flex-col justify-between gap-2 hover:border-white/10 transition ${
+                                                isCompleted ? 'opacity-40 line-through bg-emerald-950/5' : ''
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-start gap-2">
+                                                <div>
+                                                    <div className="font-bold text-xs text-white line-clamp-1">{task.title}</div>
+                                                    <div className="text-[8px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                                        <span>📅 {task.date}</span>
+                                                        {task.videoUrl && <span className="text-cyan-400 font-bold">📺 شرح مرئي</span>}
+                                                    </div>
+                                                </div>
+                                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-indigo-950/40 text-indigo-300 border border-indigo-500/15">
+                                                    {task.category}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center pt-1 border-t border-white/5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`text-[9px] font-mono font-bold ${isActive ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`}>
+                                                        ⏱ {formatTime(task.actualTime || 0)} / {task.estTime}m
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-1">
+                                                    {!isCompleted && !isCancelled && (
+                                                        <button 
+                                                            onClick={() => toggleTimer(task.id)} 
+                                                            className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                                                                isActive ? 'bg-amber-500 text-slate-950' : 'bg-white text-slate-950'
+                                                            }`}
+                                                        >
+                                                            {isActive ? '⏸' : '▶'}
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => setEditingTask({ ...task })} className="p-0.5 rounded bg-white/5 text-[9px]">📝</button>
+                                                    <button onClick={() => handleDeleteTask(task.id)} className="p-0.5 rounded bg-white/5 text-rose-400 text-[9px]">✕</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                );
+            };
 
             const getDailyWisdom = () => {
                 const now = new Date();
@@ -1548,7 +1647,7 @@
                                         onClick={() => setActiveTab('study')}
                                         className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'study' ? 'bg-amber-500 text-slate-950 shadow-md font-black' : 'text-slate-400 hover:text-white'}`}
                                     >
-                                        📖 لوحة المذاكرة والقراءة الغامرة 
+                                        📖 لوحة المذاكرة والشرح المرئي
                                         {isCandleLit && <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>}
                                     </button>
                                 </div>
@@ -1589,7 +1688,7 @@
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                                                 <div className="space-y-4 bg-slate-950/35 p-4 rounded-2xl border border-white/5">
                                                     <h5 className="text-[9px] uppercase tracking-wider text-slate-400 font-mono font-bold">TIME ANALYSIS</h5>
                                                     <div className="space-y-3">
@@ -1651,15 +1750,60 @@
                                                         })}
                                                     </div>
                                                 </div>
+
+                                                {/* سجل تقريري يحسب وقت الرفاهية فقط لمعرفة الوقت المنفق بدقة */}
+                                                <div className="space-y-3 bg-slate-950/35 p-4 rounded-2xl border border-white/5">
+                                                    <h5 className="text-[9px] uppercase tracking-wider text-pink-400 font-mono font-bold">LUXURY TIME LOG (سجل الرفاهية)</h5>
+                                                    <div className="space-y-3">
+                                                        <div className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5">
+                                                            <span className="text-slate-300 font-medium">إجمالي الاستجمام والترفيه</span>
+                                                            <span className="mono font-bold text-pink-400">{formatDigitalTimer(luxurySeconds)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5">
+                                                            <span className="text-slate-300 font-medium">معدل الاستراحة الكلي</span>
+                                                            <span className="mono font-bold text-white">
+                                                                {totalFocusSeconds > 0 ? Math.round((luxurySeconds / (totalFocusSeconds + luxurySeconds)) * 100) : 0}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-xs">
+                                                            <button 
+                                                                onClick={() => confirm('هل تود تصفير سجل وقت الرفاهية؟') && setLuxurySeconds(0)}
+                                                                className="text-[9px] text-pink-400 font-bold hover:underline"
+                                                            >
+                                                                تصفير السجل ✕
+                                                            </button>
+                                                            <span className="text-[9px] text-slate-500">يحسب في صالون الرفاهية</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
                                             </div>
                                         </div>
 
-                                        {/* جدول المهام المسجلة الفعلي */}
+                                        {/* لوحة عرض وإدارة المهام */}
                                         <div className="bg-slate-900/35 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-xl">
                                             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                                                <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2">
-                                                    <span>📋</span> جدول المهام المسجلة
-                                                </h2>
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                                                    <h2 className="text-xs uppercase font-bold tracking-wider text-white flex items-center gap-2">
+                                                        <span>📋</span> إدارة المهام
+                                                    </h2>
+                                                    
+                                                    {/* أداة تبديل طريقة العرض للمصفوفة أو الجدول */}
+                                                    <div className="flex gap-1 bg-slate-950/80 p-1 rounded-xl border border-white/10 w-fit">
+                                                        <button 
+                                                            onClick={() => setTasksViewMode('matrix')}
+                                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${tasksViewMode === 'matrix' ? 'bg-teal-500 text-slate-950 font-black' : 'text-slate-400'}`}
+                                                        >
+                                                            🎛️ مصفوفة إيزنهاور 2x2
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setTasksViewMode('table')}
+                                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all ${tasksViewMode === 'table' ? 'bg-teal-500 text-slate-950 font-black' : 'text-slate-400'}`}
+                                                        >
+                                                            📋 الجدول الكلاسيكي
+                                                        </button>
+                                                    </div>
+                                                </div>
                                                 
                                                 <div className="flex gap-2 flex-wrap">
                                                     <button onClick={handleExportData} className="bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-bold px-3 py-1.5 rounded-xl transition">تصدير JSON</button>
@@ -1704,105 +1848,120 @@
                                                 </select>
                                             </div>
 
-                                            {/* جدول عرض البيانات المتجاوب */}
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-right border-collapse min-w-[650px]">
-                                                    <thead>
-                                                        <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                                                            <th className="pb-3 pr-2">تفاصيل المهمة</th>
-                                                            <th className="pb-3">التصنيف</th>
-                                                            <th className="pb-3">التقديري</th>
-                                                            <th className="pb-3">المنقضي</th>
-                                                            <th className="pb-3">الأولوية</th>
-                                                            <th className="pb-3">الحالة</th>
-                                                            <th className="pb-3 text-left pl-2">التحكم</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-white/5">
-                                                        {filteredTasks.map(task => {
-                                                            const isActive = activeTaskId === task.id;
-                                                            const isCompleted = task.status === 'Completed';
-                                                            const isCancelled = task.status === 'Cancelled';
-                                                            
-                                                            let rowStyle = "text-xs hover:bg-white/[0.02] transition-all ";
-                                                            if (isCompleted) {
-                                                                rowStyle += "opacity-45 line-through bg-emerald-950/15 border-emerald-500/10 text-slate-400";
-                                                            } else if (isCancelled) {
-                                                                rowStyle += "bg-rose-950/20 border-rose-500/15 text-rose-300";
-                                                            }
+                                            {/* محتوى المهام المتغير حسب نمط العرض المختار */}
+                                            {tasksViewMode === 'matrix' ? (
+                                                /* تخطيط مصفوفة إيزنهاور 2x2 التفاعلي */
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
+                                                    {renderEisenhowerQuadrant('urgent_important', '🔥 الربع 1: هام وعاجل (افعل الآن)', 'bg-rose-500/5', 'border-rose-500/20', 'text-rose-400')}
+                                                    {renderEisenhowerQuadrant('important_not_urgent', '📅 الربع 2: هام وغير عاجل (خطط له)', 'bg-emerald-500/5', 'border-emerald-500/20', 'text-emerald-400')}
+                                                    {renderEisenhowerQuadrant('urgent_not_important', '⚡ الربع 3: عاجل وغير هام (فوضه / أنجزه)', 'bg-amber-500/5', 'border-amber-500/20', 'text-amber-400')}
+                                                    {renderEisenhowerQuadrant('not_urgent_not_important', '🗑️ الربع 4: غير عاجل وغير هام (احذفه)', 'bg-slate-500/5', 'border-slate-500/20', 'text-slate-400')}
+                                                </div>
+                                            ) : (
+                                                /* جدول عرض البيانات الكلاسيكي */
+                                                <div className="overflow-x-auto animate-fadeIn">
+                                                    <table className="w-full text-right border-collapse min-w-[650px]">
+                                                        <thead>
+                                                            <tr className="border-b border-white/5 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                                                <th className="pb-3 pr-2">تفاصيل المهمة</th>
+                                                                <th className="pb-3">التصنيف</th>
+                                                                <th className="pb-3">التقديري</th>
+                                                                <th className="pb-3">المنقضي</th>
+                                                                <th className="pb-3">إيزنهاور</th>
+                                                                <th className="pb-3">الحالة</th>
+                                                                <th className="pb-3 text-left pl-2">التحكم</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-white/5">
+                                                            {filteredTasks.map(task => {
+                                                                const isActive = activeTaskId === task.id;
+                                                                const isCompleted = task.status === 'Completed';
+                                                                const isCancelled = task.status === 'Cancelled';
+                                                                
+                                                                let rowStyle = "text-xs hover:bg-white/[0.02] transition-all ";
+                                                                if (isCompleted) {
+                                                                    rowStyle += "opacity-45 line-through bg-emerald-950/15 border-emerald-500/10 text-slate-400";
+                                                                } else if (isCancelled) {
+                                                                    rowStyle += "bg-rose-950/20 border-rose-500/15 text-rose-300";
+                                                                }
 
-                                                            return (
-                                                                <tr key={task.id} className={rowStyle}>
-                                                                    <td className="py-3.5 pr-2">
-                                                                        <div className="font-bold">{task.title}</div>
-                                                                        <div className="text-[9px] text-slate-400 flex items-center gap-2 mt-0.5">
-                                                                            <span>📅 {task.date}</span>
-                                                                            {task.notes && <span>• {task.notes}</span>}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td>
-                                                                        <span className="px-2.5 py-0.5 rounded text-[9px] font-bold tracking-wider bg-indigo-950/40 text-indigo-300 border border-indigo-500/15">{task.category}</span>
-                                                                    </td>
-                                                                    <td className="mono text-slate-400 font-semibold">{task.estTime}m</td>
-                                                                    <td>
-                                                                        <span className={`mono font-bold ${isActive ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`}>
-                                                                            {formatTime(task.actualTime || 0)}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td>
-                                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-wider ${
-                                                                            task.priority === 'High' ? 'bg-rose-950/40 text-rose-400 border border-rose-500/15' : 'bg-slate-800 text-slate-400'
-                                                                        }`}>{task.priority === 'High' ? 'عالية' : 'عادية'}</span>
-                                                                    </td>
-                                                                    <td>
-                                                                        <select 
-                                                                            value={task.status}
-                                                                            onChange={(e) => {
-                                                                                setTasks(tasks.map(t => t.id === task.id ? { ...t, status: e.target.value } : t));
-                                                                                if (e.target.value !== 'In Progress' && activeTaskId === task.id) setActiveTaskId(null);
-                                                                            }}
-                                                                            className="bg-[#0c0d10] text-[10px] text-slate-300 font-semibold rounded border border-white/10 px-1 py-0.5 focus:outline-none cursor-pointer"
-                                                                        >
-                                                                            <option value="Pending">قيد الانتظار</option>
-                                                                            <option value="In Progress">جاري العمل</option>
-                                                                            <option value="Completed">منتهية مكتملة</option>
-                                                                            <option value="Cancelled">ملغاة/غير منجزة</option>
-                                                                        </select>
-                                                                    </td>
-                                                                    <td className="text-left pl-2">
-                                                                        <div className="flex items-center justify-end gap-1">
-                                                                            {!isCompleted && !isCancelled && (
-                                                                                <button 
-                                                                                    onClick={() => toggleTimer(task.id)} 
-                                                                                    className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${isActive ? 'bg-amber-500 text-slate-950 font-black' : 'bg-white text-slate-950'}`}
-                                                                                >
-                                                                                    {isActive ? '⏸ مؤقتاً' : '▶ بدء التركيز'}
-                                                                                </button>
-                                                                            )}
-                                                                            <button onClick={() => setEditingTask({ ...task })} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300">📝</button>
-                                                                            <button onClick={() => handleDuplicateTask(task)} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300">📁</button>
-                                                                            <button onClick={() => handleDeleteTask(task.id)} className="p-1 rounded bg-white/5 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400">✕</button>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                                                return (
+                                                                    <tr key={task.id} className={rowStyle}>
+                                                                        <td className="py-3.5 pr-2">
+                                                                            <div className="font-bold">{task.title}</div>
+                                                                            <div className="text-[9px] text-slate-400 flex items-center gap-2 mt-0.5">
+                                                                                <span>📅 {task.date}</span>
+                                                                                {task.notes && <span>• {task.notes}</span>}
+                                                                                {task.videoUrl && <span className="text-cyan-400">📺 فيديو الشرح متاح</span>}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="px-2.5 py-0.5 rounded text-[9px] font-bold tracking-wider bg-indigo-950/40 text-indigo-300 border border-indigo-500/15">{task.category}</span>
+                                                                        </td>
+                                                                        <td className="mono text-slate-400 font-semibold">{task.estTime}m</td>
+                                                                        <td>
+                                                                            <span className={`mono font-bold ${isActive ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`}>
+                                                                                {formatTime(task.actualTime || 0)}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <span className="text-[10px] text-slate-300">
+                                                                                {task.eisenhower === 'urgent_important' && '🔥 هام وعاجل'}
+                                                                                {task.eisenhower === 'important_not_urgent' && '📅 هام وغير عاجل'}
+                                                                                {task.eisenhower === 'urgent_not_important' && '⚡ عاجل وغير هام'}
+                                                                                {task.eisenhower === 'not_urgent_not_important' && '🗑️ غير عاجل وغير هام'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td>
+                                                                            <select 
+                                                                                value={task.status}
+                                                                                onChange={(e) => {
+                                                                                    setTasks(tasks.map(t => t.id === task.id ? { ...t, status: e.target.value } : t));
+                                                                                    if (e.target.value !== 'In Progress' && activeTaskId === task.id) setActiveTaskId(null);
+                                                                                }}
+                                                                                className="bg-[#0c0d10] text-[10px] text-slate-300 font-semibold rounded border border-white/10 px-1 py-0.5 focus:outline-none cursor-pointer"
+                                                                            >
+                                                                                <option value="Pending">قيد الانتظار</option>
+                                                                                <option value="In Progress">جاري العمل</option>
+                                                                                <option value="Completed">منتهية مكتملة</option>
+                                                                                <option value="Cancelled">ملغاة/غير منجزة</option>
+                                                                            </select>
+                                                                        </td>
+                                                                        <td className="text-left pl-2">
+                                                                            <div className="flex items-center justify-end gap-1">
+                                                                                {!isCompleted && !isCancelled && (
+                                                                                    <button 
+                                                                                        onClick={() => toggleTimer(task.id)} 
+                                                                                        className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${isActive ? 'bg-amber-500 text-slate-950 font-black' : 'bg-white text-slate-950'}`}
+                                                                                    >
+                                                                                        {isActive ? '⏸ مؤقتاً' : '▶ بدء التركيز'}
+                                                                                    </button>
+                                                                                )}
+                                                                                <button onClick={() => setEditingTask({ ...task })} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300">📝</button>
+                                                                                <button onClick={() => handleDuplicateTask(task)} className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300">📁</button>
+                                                                                <button onClick={() => handleDeleteTask(task.id)} className="p-1 rounded bg-white/5 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400">✕</button>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 ) : (
-                                    /* --- لوحة القراءة والمذاكرة الغامرة المنسقة بنقاء وأسلوب مبهج وعالي التباين --- */
+                                    /* --- لوحة القراءة والمذاكرة وصالون الفيديوهات الشرح المنسقة بجانب بعضها البعض --- */
                                     <div className={`backdrop-blur-xl border rounded-3xl p-6 shadow-2xl space-y-5 transition-all duration-500 ${isCandleLit ? 'bg-[#0f111a] relative z-40 shadow-[0_0_50px_rgba(245,158,11,0.25)] border-amber-500/40 text-amber-50' : 'bg-slate-900/40 border-white/15'}`}>
                                         
                                         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-white/10 pb-4">
                                             <div>
                                                 <h2 className="text-base font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200 flex items-center gap-2">
-                                                    <span>📚</span> صالون القراءة والمذاكرة الهادئ
+                                                    <span>📚</span> صالون المذاكرة والقراءة الهادئ والشرح المرئي
                                                 </h2>
                                                 <p className="text-[10px] text-slate-400 mt-1">
-                                                    {isCandleLit ? "🕯️ وضع الإضاءة التعبيرية الدافئة نشط بالكامل. صالون القراءة مضاء بأمان لتسهيل المذاكرة." : "ادرس محاضراتك بصفاء ذهني كامل مع وهج الشمع وخفت الإضاءة المتجاوب"}
+                                                    {isCandleLit ? "🕯️ وضع الإضاءة التعبيرية الدافئة نشط بالكامل. صالون القراءة مضاء بأمان لتسهيل المذاكرة." : "ادرس محاضراتك بصفاء ذهني كامل مع وهج الشمع وخفت الإضاءة المتجاوب مع الفيديوهات المرفقة بالمهام"}
                                                 </p>
                                             </div>
 
@@ -1817,7 +1976,7 @@
                                                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                                                     }`}
                                                 >
-                                                    🕯️ {isCandleLit ? 'إطفاء الشمعة (إنارة عادية)' : 'إشعال الشمعة (تعتيم دافئ)'}
+                                                    🕯️ {isCandleLit ? 'إطفاء الشمعة' : 'إشعال الشمعة'}
                                                 </button>
 
                                                 {/* فتح ملف نصي أو PDF أو Word */}
@@ -1850,43 +2009,96 @@
                                             </div>
                                         </div>
 
-                                        {/* شريط الإرشادات اللطيف */}
-                                        <div className="flex items-center justify-between text-[10px] text-slate-400 bg-white/5 p-3 rounded-2xl border border-white/5">
-                                            <span className="flex items-center gap-1">💡 يمكنك فتح ملفات PDF أو Word تلقائياً لقرائتها محلياً بمحرك المتصفح.</span>
-                                            <span className="text-amber-300 font-bold hidden sm:inline">dir="auto" نشط للتوجيه اللغوي التلقائي</span>
-                                        </div>
+                                        {/* شبكة صالون المذاكرة وصالون سماع الفيديوهات جنباً إلى جنب */}
+                                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                                            
+                                            {/* يمين: لوحة المذاكرة والكتابة */}
+                                            <div className={`${tasks.some(t => t.videoUrl) ? 'xl:col-span-7' : 'xl:col-span-12'} space-y-4`}>
+                                                {/* محاكي الشمعة البصري الكودي الأنيق */}
+                                                {isCandleLit && (
+                                                    <div className="flex items-center gap-4 bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 max-w-sm mx-auto animate-fadeIn">
+                                                        <div className="relative w-6 h-14 bg-gradient-to-b from-amber-200 to-amber-500 rounded-t-sm shadow-md flex-shrink-0">
+                                                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0.5 h-1.5 bg-slate-950"></div>
+                                                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-3 h-4 bg-gradient-to-t from-red-500 via-amber-400 to-yellow-100 rounded-full shadow-[0_0_12px_rgba(245,158,11,0.9)] origin-bottom animate-flame"></div>
+                                                        </div>
+                                                        <div className="text-xs text-amber-300 font-bold leading-relaxed">
+                                                            تم خفت إضاءة الخلفية بكامل أجزاء الصفحة، بينما تظل لوحة القراءة واضحة لتسهيل القراءة والمذاكرة.
+                                                        </div>
+                                                    </div>
+                                                )}
 
-                                        {/* محاكي الشمعة البصري الكودي الأنيق */}
-                                        {isCandleLit && (
-                                            <div className="flex items-center gap-4 bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 max-w-sm mx-auto animate-fadeIn">
-                                                {/* الشمعة المتحركة */}
-                                                <div className="relative w-6 h-14 bg-gradient-to-b from-amber-200 to-amber-500 rounded-t-sm shadow-md flex-shrink-0">
-                                                    {/* الفتيل */}
-                                                    <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0.5 h-1.5 bg-slate-950"></div>
-                                                    {/* اللهب */}
-                                                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-3 h-4 bg-gradient-to-t from-red-500 via-amber-400 to-yellow-100 rounded-full shadow-[0_0_12px_rgba(245,158,11,0.9)] origin-bottom animate-flame"></div>
-                                                </div>
-                                                <div className="text-xs text-amber-300 font-bold leading-relaxed">
-                                                    تم خفت إضاءة الخلفية بكامل أجزاء الصفحة، بينما تظل لوحة القراءة واضحة لتسهيل القراءة والمذاكرة.
+                                                <div className="relative">
+                                                    <textarea
+                                                        value={studyText}
+                                                        onChange={(e) => setStudyText(e.target.value)}
+                                                        style={{ fontSize: `${studyFontSize}px` }}
+                                                        dir="auto"
+                                                        className={`w-full min-h-[500px] border rounded-2xl p-6 text-slate-100 leading-relaxed focus:outline-none focus:border-amber-400/40 focus:ring-2 focus:ring-amber-500/10 transition-all ${studyFontFamily} ${
+                                                            isCandleLit ? 'bg-[#151824] text-amber-100 border-amber-500/30' : 'bg-slate-950/60 border-white/10'
+                                                        }`}
+                                                        placeholder="ابدأ بكتابة أو لصق محاضراتك هنا للمذاكرة الهادئة..."
+                                                    />
+                                                    <div className="absolute bottom-4 left-4 text-[9px] text-slate-500 font-mono">
+                                                        عدد الأحرف: {studyText.length}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* حقل تحرير وقراءة المحاضرات الغامر الأكبر المتجاوب (dir="auto") وعالي التباين */}
-                                        <div className="relative">
-                                            <textarea
-                                                value={studyText}
-                                                onChange={(e) => setStudyText(e.target.value)}
-                                                style={{ fontSize: `${studyFontSize}px` }}
-                                                dir="auto"
-                                                className={`w-full min-h-[500px] border rounded-2xl p-6 text-slate-100 leading-relaxed focus:outline-none focus:border-amber-400/40 focus:ring-2 focus:ring-amber-500/10 transition-all ${studyFontFamily} ${
-                                                    isCandleLit ? 'bg-[#151824] text-amber-100 border-amber-500/30' : 'bg-slate-950/60 border-white/10'
-                                                }`}
-                                                placeholder="ابدأ بكتابة أو لصق محاضراتك هنا للمذاكرة الهادئة..."
-                                            />
-                                            <div className="absolute bottom-4 left-4 text-[9px] text-slate-500 font-mono">
-                                                عدد الأحرف: {studyText.length}
-                                            </div>
+                                            {/* يسار: صالون سماع فيديوهات الشرح المخصصة للمهمة جنباً إلى جنب */}
+                                            {tasks.some(t => t.videoUrl) && (
+                                                <div className="xl:col-span-5 bg-slate-950/50 border border-white/10 rounded-2xl p-5 space-y-4">
+                                                    <div className="border-b border-white/5 pb-2">
+                                                        <h3 className="text-xs font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-teal-400 flex items-center gap-1.5">
+                                                            <span>📺</span> صالون الشرح المرئي للمواد والمهام
+                                                        </h3>
+                                                        <p className="text-[9px] text-slate-400 mt-1">شاهد فيديوهات الشرح المرفقة بالمهام لتذاكر بكفاءة أعلى</p>
+                                                    </div>
+
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">اختر فيديو الشرح للمهمة:</label>
+                                                            <select 
+                                                                value={studySelectedTaskId} 
+                                                                onChange={(e) => setStudySelectedTaskId(e.target.value)}
+                                                                className="w-full bg-slate-900 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-slate-300 focus:outline-none cursor-pointer"
+                                                            >
+                                                                <option value="">-- اختر مهمة لعرض الفيديو --</option>
+                                                                {tasks.filter(t => t.videoUrl).map(t => (
+                                                                    <option key={t.id} value={t.id}>{t.title}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        {/* مشغل الفيديو الذكي */}
+                                                        {(() => {
+                                                            const targetTask = tasks.find(t => t.id === Number(studySelectedTaskId)) || tasks.find(t => t.videoUrl);
+                                                            if (targetTask && targetTask.videoUrl) {
+                                                                return (
+                                                                    <div className="space-y-2 animate-fadeIn">
+                                                                        <div className="aspect-video w-full rounded-xl overflow-hidden bg-black border border-white/5">
+                                                                            <iframe 
+                                                                                src={targetTask.videoUrl} 
+                                                                                className="w-full h-full" 
+                                                                                allowFullScreen 
+                                                                                allow="autoplay; encrypted-media"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="text-[10px] font-bold text-slate-300 bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5">
+                                                                            🎬 الشرح الحالي: <span className="text-teal-400">{targetTask.title}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <div className="text-center py-10 text-[10px] text-slate-500">
+                                                                    اختر مهمة من القائمة لعرض الفيديو الخاص بها مباشرة هنا.
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                         </div>
                                     </div>
                                 )}
@@ -2049,6 +2261,29 @@
                                                     placeholder="أهداف فرعية للمهمة..."
                                                     className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
                                                 />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">رابط فيديو الشرح (يوتيوب) 📺</label>
+                                                <input 
+                                                    type="text"
+                                                    value={formVideoUrl}
+                                                    onChange={(e) => setFormVideoUrl(e.target.value)}
+                                                    placeholder="رابط شرح المهمة..."
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-teal-500 transition"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">موقع المهمة بمصفوفة إيزنهاور</label>
+                                                <select 
+                                                    value={formEisenhower}
+                                                    onChange={(e) => setFormEisenhower(e.target.value)}
+                                                    className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
+                                                >
+                                                    <option value="urgent_important" className="bg-slate-900">الربع 1: هام وعاجل (افعل الآن)</option>
+                                                    <option value="important_not_urgent" className="bg-slate-900">الربع 2: هام وغير عاجل (خطط له)</option>
+                                                    <option value="urgent_not_important" className="bg-slate-900">الربع 3: عاجل وغير هام (فوضه)</option>
+                                                    <option value="not_urgent_not_important" className="bg-slate-900">الربع 4: غير عاجل وغير هام (احذفه)</option>
+                                                </select>
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
@@ -2282,6 +2517,23 @@
                                     <div>
                                         <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">ملاحظات</label>
                                         <input type="text" value={editingTask.notes} onChange={e => setEditingTask({ ...editingTask, notes: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">رابط فيديو الشرح (يوتيوب) 📺</label>
+                                        <input type="text" value={editingTask.videoUrl || ''} onChange={e => setEditingTask({ ...editingTask, videoUrl: formatEmbedUrl(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] uppercase font-bold text-slate-400 block mb-1">موقع المهمة بمصفوفة إيزنهاور</label>
+                                        <select 
+                                            value={editingTask.eisenhower || 'urgent_important'} 
+                                            onChange={e => setEditingTask({ ...editingTask, eisenhower: e.target.value })} 
+                                            className="w-full bg-slate-900 border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none"
+                                        >
+                                            <option value="urgent_important">الربع 1: هام وعاجل (افعل الآن)</option>
+                                            <option value="important_not_urgent">الربع 2: هام وغير عاجل (خطط له)</option>
+                                            <option value="urgent_not_important">الربع 3: عاجل وغير هام (فوضه)</option>
+                                            <option value="not_urgent_not_important">الربع 4: غير عاجل وغير هام (احذفه)</option>
+                                        </select>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
